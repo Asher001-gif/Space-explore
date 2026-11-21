@@ -63,6 +63,8 @@ function box(g,w,h,d,c,x,y,z,basic){const m=new T.Mesh(new T.BoxGeometry(w,h,d),
 function cone(g,r,h,c,y,seg=6){const m=new T.Mesh(new T.ConeGeometry(r,h,seg),mat(c));m.position.y=y;g.add(m)}
 
 /* ---------- planets ---------- */
+const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
+const _M=new T.Matrix4(),_r=new T.Vector3();
 const planets=[];
 const PDEF=[
 {name:'Verdant',c:new T.Vector3(170,10,-90),R:45,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:80,peace:12,pred:4},
@@ -77,7 +79,6 @@ PDEF.forEach(d=>{
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
  for(let i=0;i<d.pred;i++)makeAnimal(d,true);
 });
-const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
 function makeTree(d){
  const g=new T.Group(),n=rndDir(),s=rnd(.8,1.4),k=Math.random()<.5?0:1;
  const tr=new T.Mesh(new T.CylinderGeometry(.35,.5,3,5),mat(d.trunk));tr.position.y=1.5;g.add(tr);
@@ -85,7 +86,6 @@ function makeTree(d){
  g.scale.setScalar(s);g.position.copy(n).multiplyScalar(d.R-.5).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
  reg(g,{kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2});
 }
-const _M=new T.Matrix4(),_r=new T.Vector3();
 function orient(a){_r.crossVectors(a.n,a.t).normalize();_M.makeBasis(_r,a.n,a.t);a.root.quaternion.setFromRotationMatrix(_M);a.root.position.copy(a.n).multiplyScalar(a.pl.R-.5).add(a.pl.c)}
 function makeAnimal(d,pred){
  const s=pred?1.5:1,g=new T.Group(),bc=pred?d.pr:d.pc,hc=pred?0x2a0e0e:d.ph,lc=pred?0x1a0808:0x2b2b2b;
