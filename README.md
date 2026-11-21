@@ -16,3 +16,6 @@ WASD/Arrows move, Shift/8 jump off a planet into space, mouse look (click to cap
 
 ## Day/night & creatures
 A full day lasts 4 minutes. Peaceful animals fill the planets by day; predators spawn at night (19:00-05:00) and fade at dawn. Animals/predators can drop an Anti-Gravity Core (slot 6): aim at a placed block and tap 5/Space to walk around it, Shift/8 to jump off.
+
+## Inventory & crafting
+0 / E opens a 9x4 inventory grid (drag or click-click to move/swap stacks, double-click food/medicine to use) with crafting tabs underneath: Tools (pickaxe, axe, spear), Materials (hull), Food (cooked meat, stew), Comfort (bandage, medkit).
