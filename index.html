@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Space Explore</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--fg:#e8ecff;--panel:rgba(12,16,34,.8);--line:rgba(160,180,255,.4);--bad:#ff5a5a;--good:#6dff9a;--food:#ffb04a}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#03040a;color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;user-select:none}
+canvas{display:block;position:fixed;inset:0}
+.hud{position:fixed;pointer-events:none}
+#stats{left:12px;top:max(12px,env(safe-area-inset-top));width:220px}
+.bar{height:12px;border:1px solid var(--line);background:var(--panel);margin:4px 0;border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%}
+#hp i{background:var(--bad)}#hg i{background:var(--food)}
+#loc{margin-top:6px;opacity:.85}
+#cross{left:50%;top:50%;width:18px;height:18px;margin:-9px;border:2px solid #fff;border-radius:50%;opacity:.6}
+#tgt{left:50%;top:calc(50% + 28px);transform:translateX(-50%);text-align:center;min-width:160px}
+#pb{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px;overflow:hidden;display:none}#pb i{display:block;height:100%;width:0;background:var(--good)}
+#hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px}
+.slot{width:70px;height:70px;border:2px solid var(--line);background:var(--panel);border-radius:10px;text-align:center;padding-top:6px;font-size:26px;position:relative}
+.slot small{display:block;font-size:11px;opacity:.85}.slot b{position:absolute;left:5px;top:2px;font-size:11px;opacity:.7}
+.slot.sel{border-color:#fff;box-shadow:0 0 12px #8fb0ff}
+#toast{left:50%;top:18%;transform:translateX(-50%);padding:8px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;opacity:0;transition:opacity .3s}
+#flash{position:fixed;inset:0;background:red;opacity:0;pointer-events:none;transition:opacity .25s}
+#ov,#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,4,10,.72);z-index:5}
+#menu{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 26px;max-width:460px;backdrop-filter:blur(6px)}
+.card h1,.card h2{margin:0 0 8px}.card p{margin:6px 0}
+button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;margin:4px 4px 0 0}button:hover{background:#3a4fa0}
+.row{display:flex;gap:10px;margin:8px 0;flex-wrap:wrap}.blk{padding:8px 12px;border-radius:8px;border:1px solid var(--line);min-width:90px;text-align:center}
+.blk div{width:28px;height:28px;margin:0 auto 4px;border:2px solid #0006}
+</style></head><body>
+<div id="stats" class="hud"><div>❤ Health</div><div class="bar" id="hp"><i></i></div><div>🍖 Hunger</div><div class="bar" id="hg"><i></i></div><div id="loc"></div></div>
+<div id="cross" class="hud"></div>
+<div id="tgt" class="hud"><div id="tn"></div><div id="pb"><i></i></div></div>
+<div id="hot" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div>
+<div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
+<p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
+<p><b>Move</b> WASD / Arrows (Shift = boost) · <b>Look</b> mouse (click to capture, Esc to release)</p>
+<p><b>1-4</b> select slot · <b>5 / Space</b> tap = eat/place, hold = break &amp; collect · <b>0 / E</b> build menu</p>
+<p>🍖 Food (eat) · 🪵 Wood · 🪨 Stone · 🧱 Hull blocks</p>
+<p>⚠ Red animals are predators — they chase you!</p><button>Click to play</button></div></div>
+<div id="menu"><div class="card"><h2>🧱 Build Inventory</h2><div id="mi"></div>
+<p>Craft blocks, then pick them with slots 2-4 and tap 5/Space to place. Hold 5/Space on a block to take it back.</p>
+<button id="c1">Craft 2 Hull (1 🪵 + 1 🪨)</button><br><button id="cl">Close (E)</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE,$=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a),UP=new T.Vector3(0,1,0);
+const scene=new T.Scene();scene.background=new T.Color(0x03040a);
+const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,4000);cam.rotation.order='YXZ';
+const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
+scene.add(new T.HemisphereLight(0x9fb4ff,0x2a1f2f,.6));
+const SUN=new T.Vector3(900,220,120);
+const dl=new T.DirectionalLight(0xfff1d0,1.2);dl.position.copy(SUN);scene.add(dl);
+[[70,0xffe28a,1],[105,0xffc060,.22]].forEach(([r,c,o])=>{const m=new T.Mesh(new T.IcosahedronGeometry(r,1),new T.MeshBasicMaterial({color:c,transparent:o<1,opacity:o}));m.position.copy(SUN);scene.add(m)});
+{const p=[];for(let i=0;i<1500;i++){const v=new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(1800);p.push(v.x,v.y,v.z)}
+const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));scene.add(new T.Points(g,new T.PointsMaterial({color:0xffffff,size:3,sizeAttenuation:false})))}
+const mc={};const mat=c=>mc[c]||(mc[c]=new T.MeshStandardMaterial({color:c,flatShading:true,roughness:1}));
+const noise=(x,y,z)=>{const s=Math.sin(Math.round(x*50)*12.9898+Math.round(y*50)*78.233+Math.round(z*50)*37.719)*43758.5453;return s-Math.floor(s)};
+const targets=[];
+function reg(root,o){o.root=root;o.meshes=[];root.traverse(m=>{if(m.isMesh){m.userData.o=o;o.meshes.push(m);targets.push(m)}});scene.add(root)}
+function unreg(o){o.meshes.forEach(m=>{const i=targets.indexOf(m);if(i>=0)targets.splice(i,1)});scene.remove(o.root)}
+function box(g,w,h,d,c,x,y,z,basic){const m=new T.Mesh(new T.BoxGeometry(w,h,d),basic?new T.MeshBasicMaterial({color:c}):mat(c));m.position.set(x,y,z);g.add(m);return m}
+function cone(g,r,h,c,y,seg=6){const m=new T.Mesh(new T.ConeGeometry(r,h,seg),mat(c));m.position.y=y;g.add(m)}
+
+/* ---------- planets ---------- */
+const planets=[];
+const PDEF=[
+{name:'Verdant',c:new T.Vector3(170,10,-90),R:45,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:80,peace:12,pred:4},
+{name:'Ember',c:new T.Vector3(-180,30,-170),R:40,cols:[0xc4552b,0xa8431f,0xd9803a,0x7d3a22],trunk:0x2b2020,leaf:[0xff8a2b,0xffc13b],pc:0x6fd0e0,ph:0x2a6b78,pn:'Glow Hopper 🐰',prn:'Lava Stalker ⚠',pr:0x4a1a14,trees:70,peace:10,pred:5}];
+PDEF.forEach(d=>{
+ let g=new T.IcosahedronGeometry(d.R,2);if(g.index)g=g.toNonIndexed();
+ const col=[];for(let i=0;i<g.attributes.position.count;i+=3){const c=new T.Color(d.cols[Math.floor(Math.random()*d.cols.length)]).offsetHSL(0,0,rnd(-.04,.04));for(let j=0;j<3;j++)col.push(c.r,c.g,c.b)}
+ g.setAttribute('color',new T.Float32BufferAttribute(col,3));
+ const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1}));m.position.copy(d.c);scene.add(m);
+ d.animals=[];planets.push(d);
+ for(let i=0;i<d.trees;i++)makeTree(d);
+ for(let i=0;i<d.peace;i++)makeAnimal(d,false);
+ for(let i=0;i<d.pred;i++)makeAnimal(d,true);
+});
+const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
+function makeTree(d){
+ const g=new T.Group(),n=rndDir(),s=rnd(.8,1.4),k=Math.random()<.5?0:1;
+ const tr=new T.Mesh(new T.CylinderGeometry(.35,.5,3,5),mat(d.trunk));tr.position.y=1.5;g.add(tr);
+ cone(g,2.2,4,d.leaf[k],4.5,6);cone(g,1.6,3.2,d.leaf[k],6.6,6);
+ g.scale.setScalar(s);g.position.copy(n).multiplyScalar(d.R-.5).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
+ reg(g,{kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2});
+}
+const _M=new T.Matrix4(),_r=new T.Vector3();
+function orient(a){_r.crossVectors(a.n,a.t).normalize();_M.makeBasis(_r,a.n,a.t);a.root.quaternion.setFromRotationMatrix(_M);a.root.position.copy(a.n).multiplyScalar(a.pl.R-.5).add(a.pl.c)}
+function makeAnimal(d,pred){
+ const s=pred?1.5:1,g=new T.Group(),bc=pred?d.pr:d.pc,hc=pred?0x2a0e0e:d.ph,lc=pred?0x1a0808:0x2b2b2b;
+ box(g,1.4*s,1*s,2.2*s,bc,0,1.1*s,0);box(g,.9*s,.8*s,.9*s,hc,0,1.5*s,1.4*s);
+ for(const x of[-.5,.5])for(const z of[-.8,.8])box(g,.3*s,.7*s,.3*s,lc,x*s,.35*s,z*s);
+ if(pred){for(const x of[-.25,.25]){box(g,.18*s,.18*s,.1*s,0xffee33,x*s,1.7*s,1.88*s,true);box(g,.1*s,.3*s,.1*s,0xffffff,x*s,1.1*s,1.88*s)}
+  for(let i=0;i<3;i++)box(g,.2*s,.4*s,.3*s,0xaa2222,0,1.8*s,(-.7+i*.6)*s)}
+ else{for(const x of[-.3,.3])box(g,.2,.45,.2,hc,x,2.05,1.3);box(g,.25,.25,.25,0xffffff,0,1.4,-1.2);box(g,.12,.12,.1,0x111111,0,1.5,1.88,true)}
+ const n=rndDir(),v=rndDir(),t=v.addScaledVector(n,-v.dot(n)).normalize();
+ const a={kind:'animal',pred,pl:d,n,t,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,cd:0,turn:0,tw:0,idle:0};
+ orient({...a,root:g});a.root=g;orient(a);reg(g,a);d.animals.push(a);
+}
+function stepAnimal(a,dt){
+ const pl=a.pl;a.cd-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
+ const tan=()=>toP.clone().addScaledVector(a.n,-toP.dot(a.n)).normalize();
+ if(a.pred&&dist<45&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<4.5&&a.cd<=0){hurt(12);a.cd=.9}}
+ else if(!a.pred&&dist<14){a.t.copy(tan()).negate();sp*=1.8}
+ else{a.turn-=dt;if(a.turn<=0){a.turn=rnd(2,6);a.tw=rnd(-1,1)*.8;if(Math.random()<.3)a.idle=rnd(1,3)}a.t.applyAxisAngle(a.n,a.tw*dt);a.idle-=dt;sp=a.idle>0?0:sp*.5}
+ const q=new T.Quaternion().setFromAxisAngle(_r.crossVectors(a.n,a.t).normalize(),sp*dt/pl.R);
+ a.n.applyQuaternion(q);a.t.applyQuaternion(q);a.t.addScaledVector(a.n,-a.t.dot(a.n)).normalize();orient(a);
+}
+
+/* ---------- asteroids ---------- */
+for(let i=0;i<70;i++){
+ const r=rnd(2,8);let p;
+ do{p=rndDir().multiplyScalar(rnd(25,390)*Math.cbrt(Math.random()))}while(p.length()<30||planets.some(d=>p.distanceTo(d.c)<d.R+r+14));
+ let g=new T.IcosahedronGeometry(r,1);if(g.index)g=g.toNonIndexed();const ps=g.attributes.position;
+ for(let j=0;j<ps.count;j++){const x=ps.getX(j),y=ps.getY(j),z=ps.getZ(j),f=.78+noise(x,y,z)*.45;ps.setXYZ(j,x*f,y*f,z*f)}
+ g.computeVertexNormals();
+ const m=new T.Mesh(g,mat([0x7d7d86,0x6b625a,0x8a8478,0x5d6370][i%4]));m.position.copy(p);m.rotation.set(rnd(0,6),rnd(0,6),0);m.scale.set(1,rnd(.7,1.2),rnd(.8,1.2));
+ m.userData.spin=rnd(-.15,.15);reg(m,{kind:'asteroid',name:'Asteroid 🪨',time:.8+r*.15,stone:Math.ceil(r/2)});
+}
+
+/* ---------- blocks / inventory ---------- */
+const BT={wood:{c:0xb5793f,n:'Wood Block'},stone:{c:0x8a8f99,n:'Stone Block'},hull:{c:0x4aa3df,n:'Hull Block'}};
+const bgeo=new T.BoxGeometry(2,2,2),egeo=new T.EdgesGeometry(bgeo),emat=new T.LineBasicMaterial({color:0x000000,transparent:true,opacity:.5});
+const blocks=new Map();
+const inv={food:3,wood:4,stone:4,hull:0};
+const SL=[{k:'food',i:'🍖',n:'Food'},{k:'wood',i:'🪵',n:'Wood'},{k:'stone',i:'🪨',n:'Stone'},{k:'hull',i:'🧱',n:'Hull'}];
+let sel=0;
+const hot=$('hot');SL.forEach((s,i)=>{const d=document.createElement('div');d.className='slot';d.innerHTML=`<b>${i+1}</b>${s.i}<small></small>`;hot.appendChild(d);s.el=d});
+function place(type){
+ const dir=new T.Vector3();cam.getWorldDirection(dir);const p=cam.position.clone().addScaledVector(dir,7).divideScalar(2).round().multiplyScalar(2),key=p.x+','+p.y+','+p.z;
+ if(blocks.has(key)||p.distanceTo(cam.position)<3||planets.some(d=>p.distanceTo(d.c)<d.R+1.5)){say("Can't place there");return}
+ const m=new T.Mesh(bgeo,mat(BT[type].c));m.add(new T.LineSegments(egeo,emat));m.position.copy(p);
+ const o={kind:'block',type,key,name:BT[type].n+' 🧱',time:.5};reg(m,o);blocks.set(key,o);inv[type]--;
+}
+/* ---------- player ---------- */
+const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:0,pitch:0};
+cam.position.set(0,0,0);
+let active=false,ui=false,locked=false,drag=false;
+const keys={};
+function say(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,2200)}
+function hurt(x){P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
+function die(){say('You died — respawned in deep space');P.hp=100;P.hg=100;cam.position.set(0,0,0);P.vel.set(0,0,0);Object.assign(inv,{food:3,wood:4,stone:4,hull:0})}
+function setActive(v){active=v;$('ov').style.display=v?'none':'flex'}
+function openMenu(v){ui=v;$('menu').style.display=v?'flex':'none';if(v){document.exitPointerLock&&document.exitPointerLock();refreshMenu()}else try{ren.domElement.requestPointerLock()}catch(e){}}
+function refreshMenu(){$('mi').innerHTML='<div class="row">'+['food','wood','stone','hull'].map(k=>{const s=SL.find(x=>x.k===k),c=BT[k]?'#'+BT[k].c.toString(16).padStart(6,'0'):'#d9534f';return`<div class="blk"><div style="background:${c}"></div>${s.i} ${s.n}<br><b>${inv[k]}</b></div>`}).join('')+'</div>'}
+$('ov').onclick=()=>{setActive(true);try{ren.domElement.requestPointerLock()}catch(e){}};
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===ren.domElement;if(!locked&&!ui)setActive(false)});
+ren.domElement.addEventListener('mousedown',()=>{drag=true});addEventListener('mouseup',()=>drag=false);
+addEventListener('mousemove',e=>{if(!active||ui||!(locked||drag))return;P.yaw-=e.movementX*.0022;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-e.movementY*.0022))});
+$('c1').onclick=()=>{if(inv.wood>0&&inv.stone>0){inv.wood--;inv.stone--;inv.hull+=2;refreshMenu()}else say('Need 1 wood + 1 stone')};
+$('cl').onclick=()=>openMenu(false);
+let hold=null;
+addEventListener('keydown',e=>{
+ const c=e.code;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c))e.preventDefault();
+ if(c==='Escape'){if(ui){ui=false;$('menu').style.display='none'}setActive(false);return}
+ if(!active||e.repeat)return;keys[c]=true;
+ if(c==='Digit0'||c==='KeyE'||c==='Numpad0')openMenu(!ui);
+ else if(/^Digit[1-4]$/.test(c))sel=+c[5]-1;
+ else if((c==='Digit5'||c==='Space')&&!ui&&!hold)hold={t:performance.now(),broke:false,o:null,p:0};
+});
+addEventListener('keyup',e=>{keys[e.code]=false;
+ if((e.code==='Digit5'||e.code==='Space')&&hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}});
+function tap(){
+ const k=SL[sel].k;if(inv[k]<=0){say('No '+SL[sel].n+' left');return}
+ if(k==='food'){if(P.hg>=100){say("You're full");return}inv.food--;P.hg=Math.min(100,P.hg+25);say('Yum! +25 hunger')}else place(k)}
+function finish(o){
+ unreg(o);const D={};
+ if(o.kind==='block'){blocks.delete(o.key);inv[o.type]++;D.t=BT[o.type].n}
+ else if(o.kind==='tree'){inv.wood+=2;let f=Math.random()<.6?1:0;inv.food+=f;say('+2 wood'+(f?', +1 fruit 🍎':''))}
+ else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone')}
+ else{const f=o.pred?4:2;inv.food+=f;say('+'+f+' food 🍖');const l=o.pl.animals;l.splice(l.indexOf(o),1);setTimeout(()=>makeAnimal(o.pl,o.pred),40000)}
+}
+/* ---------- loop ---------- */
+const ray=new T.Raycaster();ray.far=14;const clock=new T.Clock(),fwd=new T.Vector3(),rgt=new T.Vector3();
+function loop(){
+ requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+ if(active&&!ui){
+  cam.rotation.set(P.pitch,P.yaw,0);cam.getWorldDirection(fwd);rgt.crossVectors(fwd,UP).normalize();
+  const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  const sp=(keys.ShiftLeft||keys.ShiftRight)?30:15,want=fwd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(sp);
+  P.vel.lerp(want,1-Math.exp(-6*dt));cam.position.addScaledVector(P.vel,dt);
+  let loc='Deep space';
+  planets.forEach(d=>{const v=cam.position.clone().sub(d.c),L=v.length();if(L<d.R+2.5){cam.position.copy(d.c).addScaledVector(v.normalize(),d.R+2.5)}if(L<d.R+70)loc='Planet '+d.name});
+  if(cam.position.length()>420){cam.position.setLength(420);say('Edge of the world — nothing beyond')}
+  $('loc').textContent='📍 '+loc;
+  P.hg=Math.max(0,P.hg-.5*dt);if(P.hg<=0)hurt(3*dt);else if(P.hg>60)P.hp=Math.min(100,P.hp+1*dt);
+  planets.forEach(d=>d.animals.forEach(a=>stepAnimal(a,dt)));
+  targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
+  ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
+  $('tn').textContent=o?o.name+(o.kind==='animal'?'':''):'';
+  if(hold){const held=performance.now()-hold.t;
+   if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
+   else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
+  $('hp').firstChild.style.width=Math.max(0,P.hp)+'%';$('hg').firstChild.style.width=P.hg+'%';
+  SL.forEach((s,i)=>{s.el.classList.toggle('sel',i===sel);s.el.querySelector('small').textContent=s.n+' ×'+inv[s.k]});
+ }
+ ren.render(scene,cam);
+}
+loop();
+</script></body></html>
