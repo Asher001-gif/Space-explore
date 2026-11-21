@@ -149,16 +149,43 @@ function place(type){
  const feet=P.mode==='ground'?cam.position.clone().addScaledVector(_t1.copy(cam.position).sub(P.pl.c).normalize(),-1.7):null;
  if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||planets.some(d=>p.distanceTo(d.c)<d.Rs+.9)){say("Can't place there");return}
  const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(p);
- const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;
+ const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;save();
 }
 /* ---------- player ---------- */
 const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0};
 cam.position.copy(START);
+/* ---------- save / load (localStorage) ---------- */
+const SAVE_KEY='spaceExplore.save.v1';
+function save(){
+ try{
+  const b=[];blocks.forEach(o=>b.push([o.type,o.pos.x,o.pos.y,o.pos.z]));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,blocks:b,inv:inv,hp:P.hp,hg:P.hg}));
+ }catch(e){/* storage full or blocked (private mode) - game keeps working */}
+}
+function loadSave(){
+ try{
+  const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;
+  const d=JSON.parse(raw);if(!d||d.v!==1)return;
+  (d.blocks||[]).forEach(([type,x,y,z])=>{
+   if(!BT[type]||![x,y,z].every(Number.isFinite))return;
+   const pos=new T.Vector3(x,y,z),key=x+','+y+','+z;if(blocks.has(key))return;
+   const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(pos);
+   const o={kind:'block',type,key,name:BT[type].n,time:.5,pos};reg(m,o);blocks.set(key,o);
+  });
+  if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
+  if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
+  if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
+ }catch(e){/* corrupt save - ignore and start fresh */}
+}
+loadSave();
+setInterval(save,3000);
+addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 let active=false,ui=false,locked=false,drag=false;
 const keys={};
 function say(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,2200)}
 function hurt(x){P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
-function die(){say('You died — respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0})}
+function die(){say('You died — respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0});save()}
 function setActive(v){active=v;$('ov').style.display=v?'none':'flex'}
 function openMenu(v){ui=v;$('menu').style.display=v?'flex':'none';if(v){document.exitPointerLock&&document.exitPointerLock();refreshMenu()}else try{ren.domElement.requestPointerLock()}catch(e){}}
 function refreshMenu(){const it=(img,n,c,sub)=>`<div class="blk"><img src="img/${img}.png">${n}<br><b>${c}</b>${sub?'<br><small>'+sub+'</small>':''}</div>`;
@@ -188,7 +215,7 @@ function tap(){
  if(inv[k]<=0){say('No '+SL[sel].n+' left');return}place(k)}
 function finish(o){
  unreg(o);const D={};
- if(o.kind==='block'){blocks.delete(o.key);inv[o.type]++;D.t=BT[o.type].n}
+ if(o.kind==='block'){blocks.delete(o.key);inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){inv.wood+=2;let f=Math.random()<.6?1:0;inv.apple+=f;say('+2 wood'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else{const f=o.pred?4:2;inv.food+=f;say('+'+f+' meat');const l=o.pl.animals;l.splice(l.indexOf(o),1);setTimeout(()=>makeAnimal(o.pl,o.pred),40000)}
