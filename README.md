@@ -29,3 +29,6 @@ Chopped trees grow back after 40-80 seconds on a free spot of the same planet (n
 
 ## Collisions
 Everything is solid: you, animals/predators, trees, blocks and asteroids all collide with each other (you can't walk through trees or animals, animals stop at trees/blocks/asteroids/you and don't overlap each other, blocks can't be placed inside trees, asteroids or animals). Trees, animals, the player and landing all stand on the *real* faceted planet surface (raycast against the planet mesh), so nothing hovers above or sinks into the ground.
+
+## Skins & icons
+Creatures use pixel-art skin sheets (`src/img/skin_*.png`, green screen removed): dark blue = predators (both planets), blue-white = peaceful animals on Verdant, autumn = peaceful animals on Ember. Each animal is built from the sheet's head, body, four legs and tail. Pickaxe, axe and spear inventory icons are `src/img/pickaxe.png`, `axe.png`, `spear.png`.
