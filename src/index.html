@@ -37,6 +37,7 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 @media(max-width:980px){.invwrap{grid-template-columns:minmax(0,1fr)}}
 .card.inv h2{font-size:15px;letter-spacing:2px;margin:0 0 12px;color:#dfe6ff}
 #grid,#hbrow{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px}
+#grid{max-height:min(60vh,600px);overflow-y:auto;padding:0 4px 4px 0}
 #hbrow{margin-top:8px;padding-top:12px;border-top:3px solid #14161c}
 .sub{font-size:11px;letter-spacing:2px;color:#9fb0d8;margin:16px 0 0}
 .cell{aspect-ratio:1;background:#1b1e27;box-shadow:inset 3px 3px 0 #0f1117,inset -3px -3px 0 #353b4b;position:relative;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
@@ -63,7 +64,7 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = jump off a planet into space (planets have gravity; space is zero-g)</p>
-<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space</b> tap = use / eat / place, hold = break &amp; collect · <b>0 / E</b> inventory (drag items into the hotbar)</p>
+<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space</b> tap = use / eat / place, hold = eat food / break &amp; collect · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
 <p>⚠ Red animals are predators — they spawn at night (19:00–05:00) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
@@ -288,8 +289,8 @@ const ITEMS={
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
  anti:{n:'Anti-Gravity Core',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5/Space'},
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 2x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 2x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
-const layout=new Array(36).fill(null); // 0-26 backpack · 27-35 hotbar (quick inventory)
-const HB=27,HLAB=['1','2','3','4','6','7','9','',''];
+const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
+const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
 const ORDER=['food','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
@@ -405,7 +406,7 @@ function loadSave(){
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
   if(Number.isFinite(d.t))worldTime=Math.max(0,d.t);
-  if(d.lv===2&&Array.isArray(d.lay)&&d.lay.length===36)d.lay.forEach((k,i)=>{layout[i]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
+  if(d.lv===2&&Array.isArray(d.lay)&&(d.lay.length===36||d.lay.length===NS))d.lay.forEach((k,i)=>{const j=d.lay.length===36&&i>=27?i+(BP-27):i;layout[j]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
  }catch(e){/* corrupt save - ignore and start fresh */}
 }
 loadSave();syncGrid();
@@ -427,11 +428,11 @@ const RECIPES={
  Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,wood:1},d:'+50 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
  Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,wood:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
 function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
- for(let i=0;i<36;i++){const k=layout[i];if(k&&(!(inv[k]>0)||layout.indexOf(k)!==i))layout[i]=null}
+ for(let i=0;i<NS;i++){const k=layout[i];if(k&&(!(inv[k]>0)||layout.indexOf(k)!==i))layout[i]=null}
  for(const k of ORDER)if(inv[k]>0&&!layout.includes(k)){let e=layout.indexOf(null,HB);if(e<0)e=layout.indexOf(null);if(e>=0)layout[e]=k}
 }
 function moveSlot(a,b){if(a===b||a==null||b==null)return;const t=layout[a];layout[a]=layout[b];layout[b]=t;save()}
-function quickMove(i){const k=layout[i];if(!k)return;const lo=i<HB?HB:0,hi=i<HB?36:HB;for(let j=lo;j<hi;j++)if(!layout[j]){layout[j]=k;layout[i]=null;save();return}say(i<HB?'Hotbar is full':'Backpack is full')}
+function quickMove(i){const k=layout[i];if(!k)return;const lo=i<HB?HB:0,hi=i<HB?NS:HB;for(let j=lo;j<hi;j++)if(!layout[j]){layout[j]=k;layout[i]=null;save();return}say(i<HB?'Hotbar is full':'Backpack is full')}
 function useItem(k){
  const it=ITEMS[k];if(!it||inv[k]<=0)return;
  if(!it.use){say(it.d||it.n);return}
@@ -443,7 +444,7 @@ function useItem(k){
 }
 function renderGrid(){
  const g=$('grid'),hb=$('hbrow');g.innerHTML='';hb.innerHTML='';
- for(let i=0;i<36;i++){
+ for(let i=0;i<NS;i++){
   const k=layout[i],d=document.createElement('div');d.className='cell'+(selSlot===i?' on':'')+(i>=HB&&i-HB===sel?' cur':'');d.dataset.i=i;
   let h=i>=HB&&HLAB[i-HB]?'<u>'+HLAB[i-HB]+'</u>':'';
   if(k){const it=ITEMS[k];d.title=it.n+(it.use?' - double-click to use':(it.d?' - '+it.d:''));h+='<img src="'+imgSrc(it.img)+'" alt="">'+(inv[k]>1?'<i>'+inv[k]+'</i>':'')}
@@ -625,8 +626,10 @@ function loop(){
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
   $('tn').innerHTML=o?(o.kind==='animal'?'<img class="ico" src="img/heart.png"> ':'')+o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':''):'';
-  if(hold){const held=performance.now()-hold.t;
-   if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
+  if(hold){const held=performance.now()-hold.t,hk=layout[HB+sel];
+   if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
+    if(held>250&&hk&&ITEMS[hk].use){hold.e=(hold.e||0)+dt/.7;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.e*100)+'%';if(hold.e>=1){hold.e=0;useItem(hk)}}else $('pb').style.display='none'}
+   else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   $('hp').firstChild.style.width=Math.max(0,P.hp)+'%';$('hg').firstChild.style.width=P.hg+'%';
   treeTick(dt);
