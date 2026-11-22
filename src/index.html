@@ -178,6 +178,7 @@ function makeAnimal(d,pred){
  const a={kind:'animal',pred,pl:d,n,t,s,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,hp:pred?14:8,mhp:pred?14:8,cd:0,turn:0,tw:0,idle:0,base:new T.Vector3(),cs:AS.map(()=>({p:new T.Vector3(),r:1}))};
  a.root=g;setBase(a);orient(a);animalCS(a);reg(g,a);d.animals.push(a);
 }
+const KB_TIME=.25,KB_SPEED=10; // knock-back: slides ~2.5 units over .25 s with a tiny hop
 function stepAnimal(a,dt){
  if(!a.dying&&a.root.scale.x>1.001)a.root.scale.setScalar(Math.max(1,a.root.scale.x-dt*1.2)); // hit squash fades
  const pl=a.pl;a.cd-=dt;a.block-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
@@ -193,7 +194,17 @@ function stepAnimal(a,dt){
  if(sp>0){const c=animalHit(a);
   if(c===1){a.n.copy(on);a.t.copy(ot);a.base.copy(ob);animalCS(a)} // blocked by the player: stand still, keep facing
   else if(c){a.n.copy(on);a.t.copy(ot).applyAxisAngle(a.n,(Math.random()<.5?-1:1)*rnd(1,2));a.base.copy(ob);a.block=.8;animalCS(a)}}
+ if(a.kb>0){ // small knock-back after being hit: a short slide away from the player
+  const k=Math.min(dt,a.kb);a.kb-=k;
+  const kn=a.n.clone(),kt=a.t.clone(),kbs=a.base.clone();
+  const kq=new T.Quaternion().setFromAxisAngle(_r.crossVectors(a.n,a.kd).normalize(),KB_SPEED*k/pl.R);
+  a.n.applyQuaternion(kq);a.t.applyQuaternion(kq);a.t.addScaledVector(a.n,-a.t.dot(a.n)).normalize();
+  a.kd.applyQuaternion(kq);a.kd.addScaledVector(a.n,-a.kd.dot(a.n)).normalize();
+  setBase(a);animalCS(a);
+  if(animalHit(a)){a.n.copy(kn);a.t.copy(kt);a.base.copy(kbs);animalCS(a);a.kb=0} // something in the way: stop sliding
+ }
  orient(a);
+ if(a.hop>0){a.hop=Math.max(0,a.hop-dt);a.root.position.addScaledVector(a.n,Math.sin(a.hop/KB_TIME*Math.PI)*.7*a.s)} // tiny hop
 }
 /* what an animal's body is touching: 1 = the player, 2 = block / asteroid / tree / another animal, 0 = free */
 function animalHit(a){
@@ -544,7 +555,10 @@ function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
  const gap=Math.min(...o.cs.map(c=>cam.position.distanceTo(c.p)-c.r));
  if(gap>reach){say('Too far — get closer');hitCD=now+400;return}
  hitCD=now+300;o.hp-=dmg;if(!o.dying)o.root.scale.setScalar(1.15);
- if(o.hp<=0){finish(o);aimObj=null}}
+ if(o.hp<=0){finish(o);aimObj=null}
+ else if(o.n&&!o.dying){ // knock the creature back a little, away from the player
+  const away=cam.position.clone().sub(o.root.position);away.addScaledVector(o.n,-away.dot(o.n));
+  if(away.lengthSq()>1e-6){o.kd=away.normalize().negate();o.kb=KB_TIME;o.hop=KB_TIME}}}
 function tap(){ // use whatever is in the selected hotbar slot
  const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
