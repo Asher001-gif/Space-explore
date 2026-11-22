@@ -290,10 +290,13 @@ let agArr=[],agDirty=true;
 const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag);agDirty=false}return agArr};
 function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;o.name=BT[o.type].n+' (anti-gravity)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
 function floodAG(start){let n=0;const q=[start],seen=new Set(q);while(q.length){const o=q.pop();if(markAG(o))n++;for(const m of nbrs(o))if(!seen.has(m)){seen.add(m);q.push(m)}}return n}
-function agNearest(p,list,out){ // closest point on the surface of any anti-gravity block
- let best=Infinity,bx=0,by=0,bz=0;
- for(let i=0;i<list.length;i++){const b=list[i].pos,x=Math.max(b.x-1,Math.min(b.x+1,p.x)),y=Math.max(b.y-1,Math.min(b.y+1,p.y)),z=Math.max(b.z-1,Math.min(b.z+1,p.z)),dx=p.x-x,dy=p.y-y,dz=p.z-z,d2=dx*dx+dy*dy+dz*dz;if(d2<best){best=d2;bx=x;by=y;bz=z}}
- out.set(bx,by,bz);return Math.sqrt(best)}
+const STICK=1.45; // a surface you already stand on counts this much closer than any other, so doorways, corridors and rooms don't flip your gravity onto the frame / walls / ceiling
+function agNearest(p,list,out,up){ // closest point on the surface of any anti-gravity block (if 'up' is given: the floor you stand on is preferred)
+ let bs=Infinity,bd=Infinity,bx=0,by=0,bz=0;
+ for(let i=0;i<list.length;i++){const b=list[i].pos,x=Math.max(b.x-1,Math.min(b.x+1,p.x)),y=Math.max(b.y-1,Math.min(b.y+1,p.y)),z=Math.max(b.z-1,Math.min(b.z+1,p.z)),dx=p.x-x,dy=p.y-y,dz=p.z-z,d2=dx*dx+dy*dy+dz*dz;
+  let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=STICK;
+  if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
+ out.set(bx,by,bz);return bd}
 const inv={food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const ITEMS={
  wood:{n:'Wood',img:'wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
@@ -329,7 +332,6 @@ function place(type){
  else p=cam.position.clone().addScaledVector(fwd,7).divideScalar(2).round().multiplyScalar(2);
  const key=p.x+','+p.y+','+p.z;
  const feet=P.mode==='ground'?cam.position.clone().addScaledVector(P.up,-1.7):null;
- if(P.mode==='ground'&&P.pl.ag&&sbDist2(cam.position,p)<(EYE+.15)*(EYE+.15)){say('Too close to your feet — aim a little further away');return}
  if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
  const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(p);
  const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
@@ -629,7 +631,7 @@ function agGround(dt){
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(AGW.spd);
  pos.addScaledVector(want,dt);colRes(pos,old,null,o=>o.ag);
  const up=_b.copy(old);
- for(let i=0;i<3;i++){const dist=agNearest(pos,ag,_cp);
+ for(let i=0;i<3;i++){const dist=agNearest(pos,ag,_cp,up);
   if(!isFinite(dist)||dist<1e-4||Math.abs(dist-EYE)<2e-3)continue; // already hovering at the right height: keep the current "up" (no flicker at inside corners)
   up.copy(pos).sub(_cp).divideScalar(dist);pos.copy(_cp).addScaledVector(up,EYE)}
  P.agT+=dt;

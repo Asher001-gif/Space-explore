@@ -39,3 +39,6 @@ When you die, a short funny line about *how* appears top-left (killed by a preda
 ## Controls: 5 / Space / left-click
 Tap = place block / eat selected food · hold = break blocks, trees, asteroids (or keep eating food) · aimed at a creature = hit it.
 Creature HP: peaceful 8, predators 14. Damage per hit: bare hand 1, pickaxe or axe 2, spear 5 → peaceful dies in 8 / 4 / 2 hits, predators in 14 / 7 / 3. Reach: 6 (spear 8). The target label shows the creature's HP.
+
+## Houses on anti-gravity blocks
+Build with anti-gravity blocks and you can walk inside: the floor you stand on is "sticky", so doorways, corridors and rooms no longer flip your gravity onto the doorframe, walls or ceiling. Walk into a wall to climb it. Interior tips: make rooms at least 2 blocks high (3 is comfortable) and doors 1 block wide x 2 blocks high; you can enter walking from a floor outside the door.
