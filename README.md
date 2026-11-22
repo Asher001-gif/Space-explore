@@ -26,3 +26,6 @@ Chopped trees grow back after 40-80 seconds on a free spot of the same planet (n
 
 ## Inventory & crafting
 0 / E opens a large inventory: 27 backpack slots + the 9-slot hotbar row. Drag items between any slots (mouse or touch; dropping on a filled slot swaps), click-then-click also works, Shift+click sends an item to the other section, double-click / right-click food or medicine to use it. Empty hotbar slots show nothing; stacks only show a number when you have more than one. New items go into the first free hotbar slot. Crafting tabs (Tools, Materials, Food, Comfort) are on the right.
+
+## Collisions
+Everything is solid: you, animals/predators, trees, blocks and asteroids all collide with each other (you can't walk through trees or animals, animals stop at trees/blocks/asteroids/you and don't overlap each other, blocks can't be placed inside trees, asteroids or animals). Trees, animals, the player and landing all stand on the *real* faceted planet surface (raycast against the planet mesh), so nothing hovers above or sinks into the ground.

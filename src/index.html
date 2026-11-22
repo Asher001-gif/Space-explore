@@ -93,6 +93,18 @@ function cone(g,r,h,c,y,seg=6){const m=new T.Mesh(new T.ConeGeometry(r,h,seg),ma
 /* ---------- planets ---------- */
 const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
 const _M=new T.Matrix4(),_r=new T.Vector3();
+var gameReady=false;
+/* true radius of the (faceted, low-poly) planet along direction n: raycast the real mesh instead of assuming a perfect sphere */
+const surfRay=new T.Raycaster(),_so=new T.Vector3(),_sd=new T.Vector3();
+function surfR(d,n){_so.copy(n).multiplyScalar(d.R+20).add(d.c);_sd.copy(n).negate();surfRay.set(_so,_sd);surfRay.far=d.R+40;
+ const h=surfRay.intersectObject(d.mesh,false);return h.length?d.R+20-h[0].distance:d.Rs}
+/* collision spheres [height, radius] along a tree's axis (trunk + two canopy cones), scaled by tree size */
+const TS=[[.5,.6],[1.5,.6],[2.4,.7],[3.2,1.8],[4.4,1.5],[5.6,1.2],[6.8,.8]];
+function treeCS(o,sc){for(let i=0;i<TS.length;i++){o.cs[i].p.copy(o.base).addScaledVector(o.n,TS[i][0]*sc);o.cs[i].r=TS[i][1]*sc}}
+/* animal collision spheres [height, forward offset, radius] */
+const AS=[[1.1,-.6,1],[1.1,.5,1],[1.5,1.4,.65]];
+function animalCS(a){for(let i=0;i<AS.length;i++){const c=a.cs[i];c.p.copy(a.base).addScaledVector(a.n,AS[i][0]*a.s).addScaledVector(a.t,AS[i][1]*a.s);c.r=AS[i][2]*a.s}}
+function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
 {name:'Verdant',c:new T.Vector3(400,30,-150),R:110,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:230,peace:24,pred:7},
@@ -101,7 +113,7 @@ PDEF.forEach(d=>{
  d.Rs=d.R-.5;let g=new T.IcosahedronGeometry(d.R,3);if(g.index)g=g.toNonIndexed();
  const col=[];for(let i=0;i<g.attributes.position.count;i+=3){const c=new T.Color(d.cols[Math.floor(Math.random()*d.cols.length)]).offsetHSL(0,0,rnd(-.04,.04));for(let j=0;j<3;j++)col.push(c.r,c.g,c.b)}
  g.setAttribute('color',new T.Float32BufferAttribute(col,3));
- const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1}));m.position.copy(d.c);scene.add(m);
+ const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1}));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
  d.animals=[];d.treeList=[];planets.push(d);
  for(let i=0;i<d.trees;i++){const n=treeSpot(d,true);if(n)makeTree(d,n)}
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
@@ -111,25 +123,30 @@ function treeSpot(d,init){ // finds an empty spot on the planet: not near other 
   const n=rndDir();
   if(d.treeList.some(t=>t.n.dot(n)>Math.cos(4.5/d.Rs)))continue;
   if(init)return n;
-  const base=n.clone().multiplyScalar(d.Rs).add(d.c);
+  const sr=surfR(d,n),base=n.clone().multiplyScalar(sr).add(d.c);
   if(base.distanceTo(cam.position)<10)continue;
   if(d.animals.some(a=>a.n.dot(n)>Math.cos(3.5/d.Rs)))continue;
-  if(hitTest(n.clone().multiplyScalar(d.Rs+2).add(d.c),3.4)||hitTest(n.clone().multiplyScalar(d.Rs+6).add(d.c),2.8))continue;
+  if(hitTest(n.clone().multiplyScalar(sr+2).add(d.c),3.4)||hitTest(n.clone().multiplyScalar(sr+6).add(d.c),2.8))continue;
   return n}
  return null}
 function makeTree(d,n,grow){
  const g=new T.Group(),s=rnd(1,1.8),k=Math.random()<.5?0:1;n=n||rndDir();
  const tr=new T.Mesh(new T.CylinderGeometry(.35,.5,3,5),mat(d.trunk));tr.position.y=1.5;g.add(tr);
  cone(g,2.2,4,d.leaf[k],4.5,6);cone(g,1.6,3.2,d.leaf[k],6.6,6);
- g.scale.setScalar(grow?.02:s);g.position.copy(n).multiplyScalar(d.Rs).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
- const o={kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2,pl:d,n,s,gt:0};
- reg(g,o);d.treeList.push(o);if(grow)growing.push(o);return o}
+ g.scale.setScalar(grow?.02:s);g.position.copy(n).multiplyScalar(surfR(d,n)-.12).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
+ const o={kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2,pl:d,n,s,gt:0,base:g.position.clone(),cs:TS.map(()=>({p:new T.Vector3(),r:0}))};
+ treeCS(o,grow?.02:s);reg(g,o);d.treeList.push(o);if(grow)growing.push(o);return o}
 function treeTick(dt){
  for(let i=regrow.length-1;i>=0;i--){const r=regrow[i];r.t-=dt;if(r.t>0)continue;
   const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
- for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
-function orient(a){_r.crossVectors(a.n,a.t).normalize();_M.makeBasis(_r,a.n,a.t);a.root.quaternion.setFromRotationMatrix(_M);a.root.position.copy(a.n).multiplyScalar(a.pl.Rs).add(a.pl.c)}
-function spawnDir(d){let n;for(let i=0;i<12;i++){n=rndDir();if(n.clone().multiplyScalar(d.Rs).add(d.c).distanceTo(cam.position)>35)break}return n}
+ for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));treeCS(o,Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
+function orient(a){_r.crossVectors(a.n,a.t).normalize();_M.makeBasis(_r,a.n,a.t);a.root.quaternion.setFromRotationMatrix(_M);a.root.position.copy(a.base)}
+function spawnDir(d){let n;for(let i=0;i<40;i++){n=rndDir();
+ if(n.clone().multiplyScalar(d.Rs).add(d.c).distanceTo(cam.position)<=35)continue;
+ if(d.treeList.some(t=>t.n.dot(n)>Math.cos(3/d.Rs)))continue;
+ if(d.animals.some(a=>a.n.dot(n)>Math.cos(4/d.Rs)))continue;
+ if(gameReady&&hitTest(n.clone().multiplyScalar(surfR(d,n)+1.2).add(d.c),2))continue;
+ return n}return n}
 function makeAnimal(d,pred){
  const s=pred?1.5:1,g=new T.Group(),bc=pred?d.pr:d.pc,hc=pred?0x2a0e0e:d.ph,lc=pred?0x1a0808:0x2b2b2b;
  box(g,1.4*s,1*s,2.2*s,bc,0,1.1*s,0);box(g,.9*s,.8*s,.9*s,hc,0,1.5*s,1.4*s);
@@ -138,22 +155,38 @@ function makeAnimal(d,pred){
   for(let i=0;i<3;i++)box(g,.2*s,.4*s,.3*s,0xaa2222,0,1.8*s,(-.7+i*.6)*s)}
  else{for(const x of[-.3,.3])box(g,.2,.45,.2,hc,x,2.05,1.3);box(g,.25,.25,.25,0xffffff,0,1.4,-1.2);box(g,.12,.12,.1,0x111111,0,1.5,1.88,true)}
  const n=spawnDir(d),v=rndDir(),t=v.addScaledVector(n,-v.dot(n)).normalize();
- const a={kind:'animal',pred,pl:d,n,t,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,cd:0,turn:0,tw:0,idle:0};
- orient({...a,root:g});a.root=g;orient(a);reg(g,a);d.animals.push(a);
+ const a={kind:'animal',pred,pl:d,n,t,s,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,cd:0,turn:0,tw:0,idle:0,base:new T.Vector3(),cs:AS.map(()=>({p:new T.Vector3(),r:1}))};
+ a.root=g;setBase(a);orient(a);animalCS(a);reg(g,a);d.animals.push(a);
 }
 function stepAnimal(a,dt){
  const pl=a.pl;a.cd-=dt;a.block-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
  const tan=()=>toP.clone().addScaledVector(a.n,-toP.dot(a.n)).normalize();
  if(a.block>0){sp*=.7}
- else if(a.pred&&dist<55&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<4.5&&a.cd<=0){hurt(12);a.cd=.9}}
+ else if(a.pred&&dist<55&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<5.4&&a.cd<=0){hurt(12);a.cd=.9}}
  else if(!a.pred&&dist<14){a.t.copy(tan()).negate();sp*=1.8}
  else{a.turn-=dt;if(a.turn<=0){a.turn=rnd(2,6);a.tw=rnd(-1,1)*.8;if(Math.random()<.3)a.idle=rnd(1,3)}a.t.applyAxisAngle(a.n,a.tw*dt);a.idle-=dt;sp=a.idle>0?0:sp*.5}
- const on=a.n.clone(),ot=a.t.clone();
+ const on=a.n.clone(),ot=a.t.clone(),ob=a.base.clone();
  const q=new T.Quaternion().setFromAxisAngle(_r.crossVectors(a.n,a.t).normalize(),sp*dt/pl.R);
  a.n.applyQuaternion(q);a.t.applyQuaternion(q);a.t.addScaledVector(a.n,-a.t.dot(a.n)).normalize();
- if(sp>0&&hitTest(_v.copy(a.n).multiplyScalar(pl.Rs+1.1).add(pl.c),a.pred?1.7:1.2)){a.n.copy(on);a.t.copy(ot).applyAxisAngle(a.n,(Math.random()<.5?-1:1)*rnd(1,2));a.block=.8}
+ setBase(a);animalCS(a);
+ if(sp>0){const c=animalHit(a);
+  if(c===1){a.n.copy(on);a.t.copy(ot);a.base.copy(ob);animalCS(a)} // blocked by the player: stand still, keep facing
+  else if(c){a.n.copy(on);a.t.copy(ot).applyAxisAngle(a.n,(Math.random()<.5?-1:1)*rnd(1,2));a.base.copy(ob);a.block=.8;animalCS(a)}}
  orient(a);
 }
+/* what an animal's body is touching: 1 = the player, 2 = block / asteroid / tree / another animal, 0 = free */
+function animalHit(a){
+ const pls=playerSph();
+ for(const c of a.cs){
+  for(const q of pls){const m=c.r+q.r;if(c.p.distanceToSquared(q.p)<m*m)return 1}
+  for(const o of blocks.values())if(sbDist2(c.p,o.pos)<c.r*c.r)return 2;
+  for(const k of asteroids){const m=k.rad+c.r;if(k.pos.distanceToSquared(c.p)<m*m)return 2}
+ }
+ for(const t of a.pl.treeList){const bd=9*t.s+3;if(t.base.distanceToSquared(a.base)>bd*bd)continue;
+  for(const c of a.cs)for(const k of t.cs){const m=k.r+c.r;if(k.p.distanceToSquared(c.p)<m*m)return 2}}
+ for(const b of a.pl.animals){if(b===a)continue;const bd=3.5*(a.s+b.s);if(b.base.distanceToSquared(a.base)>bd*bd)continue;
+  for(const c of a.cs)for(const k of b.cs){const m=k.r+c.r;if(k.p.distanceToSquared(c.p)<m*m)return 2}}
+ return 0}
 
 /* ---------- asteroids ---------- */
 const START=new T.Vector3(150,20,-20),asteroids=[];
@@ -254,23 +287,32 @@ function place(type){
  ray.far=16;ray.set(cam.position,fwd);
  const bh=ray.intersectObjects(targets.filter(m=>m.userData.o.kind==='block'),false)[0];
  let tp=1e9,pn=null,pc=null;
- for(const d of planets){const oc=_t1.copy(cam.position).sub(d.c),b=oc.dot(fwd),disc=b*b-(oc.lengthSq()-d.Rs*d.Rs);if(disc>0){const t=-b-Math.sqrt(disc);if(t>0&&t<tp&&t<16){tp=t;pc=d;pn=cam.position.clone().addScaledVector(fwd,t).sub(d.c).normalize()}}}
+ for(const d of planets){ray.far=16;ray.set(cam.position,fwd);const hh=ray.intersectObject(d.mesh,false)[0];if(hh&&hh.distance<tp&&hh.distance<16){tp=hh.distance;pc=d;pn=hh.point.clone().sub(d.c).normalize()}}
  let p;
  if(bh&&bh.distance<=tp)p=bh.object.position.clone().addScaledVector(bh.face.normal,2);
  else if(pc){p=cam.position.clone().addScaledVector(fwd,tp).addScaledVector(pn,1.1).divideScalar(2).round().multiplyScalar(2);
   const ax=Math.abs(pn.x)>Math.abs(pn.y)&&Math.abs(pn.x)>Math.abs(pn.z)?'x':Math.abs(pn.y)>Math.abs(pn.z)?'y':'z';
-  for(let i=0;i<3&&p.distanceTo(pc.c)<pc.Rs+1;i++)p[ax]+=Math.sign(pn[ax])*2}
+  const sR=surfR(pc,pn);for(let i=0;i<3&&p.distanceTo(pc.c)<sR+1;i++)p[ax]+=Math.sign(pn[ax])*2}
  else p=cam.position.clone().addScaledVector(fwd,7).divideScalar(2).round().multiplyScalar(2);
  const key=p.x+','+p.y+','+p.z;
  const feet=P.mode==='ground'?cam.position.clone().addScaledVector(P.up,-1.7):null;
  if(P.mode==='ground'&&P.pl.ag&&sbDist2(cam.position,p)<(EYE+.15)*(EYE+.15)){say('Too close to your feet — aim a little further away');return}
- if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||planets.some(d=>p.distanceTo(d.c)<d.Rs+.9)){say("Can't place there");return}
+ if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))+.9})){say("Can't place there");return}
  const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(p);
  const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
 /* ---------- player ---------- */
 const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0};
 cam.position.copy(START);
+const PS=[{p:new T.Vector3(),r:.9},{p:new T.Vector3(),r:.8}];
+function playerSph(){PS[0].p.copy(cam.position);if(P.mode==='ground'){PS[0].r=.9;PS[1].p.copy(cam.position).addScaledVector(P.up,-1.7);return PS}PS[0].r=1.3;return[PS[0]]}
+/* is a placed block's cube at p overlapping an asteroid, tree or animal? */
+function cubeBusy(p){
+ for(const a of asteroids)if(sbDist2(a.pos,p)<a.rad*a.rad)return true;
+ for(const d of planets){
+  for(const t of d.treeList){if(t.base.distanceToSquared(p)>(9*t.s+3)**2)continue;for(const k of t.cs)if(sbDist2(k.p,p)<k.r*k.r)return true}
+  for(const a of d.animals)for(const c of a.cs)if(sbDist2(c.p,p)<c.r*c.r)return true}
+ return false}
 /* ---------- day/night clock + animal spawn/despawn ---------- */
 const DAY_LEN=240;let worldTime=0,isNight=false,spawnT=0;
 const hourNow=()=>(8+worldTime/DAY_LEN*24)%24;
@@ -488,6 +530,10 @@ function colRes(pos,up,vel,skip){
   for(const o of blocks.values()){if(skip&&skip(o))continue;const b=o.pos,x=Math.max(b.x-1,Math.min(b.x+1,_p.x)),y=Math.max(b.y-1,Math.min(b.y+1,_p.y)),z=Math.max(b.z-1,Math.min(b.z+1,_p.z)),dx=_p.x-x,dy=_p.y-y,dz=_p.z-z,d2=dx*dx+dy*dy+dz*dz;
    if(d2<r*r){const d=Math.sqrt(d2);if(d>1e-5)push(dx/d,dy/d,dz/d,r-d);else push(up?up.x:0,up?up.y:1,up?up.z:0,r)}}
   for(const a of asteroids){const dx=_p.x-a.pos.x,dy=_p.y-a.pos.y,dz=_p.z-a.pos.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=a.rad+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)}
+  const sph=(c)=>{const dx=_p.x-c.p.x,dy=_p.y-c.p.y,dz=_p.z-c.p.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=c.r+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)};
+  for(const d of planets){
+   for(const t of d.treeList){const bd=9*t.s+r+2;if(t.base.distanceToSquared(_p)>bd*bd)continue;for(const c of t.cs)sph(c)}
+   for(const a of d.animals){const bd=5*a.s+r+2;if(a.base.distanceToSquared(_p)>bd*bd)continue;for(const c of a.cs)sph(c)}}
  }
 }
 const inp=()=>[(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)];
@@ -496,7 +542,7 @@ function spaceStep(dt){
  if(P.launch>0)P.launch-=dt;
  else{const[f,r]=inp(),want=fwd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(36);P.vel.lerp(want,1-Math.exp(-6*dt))}
  cam.position.addScaledVector(P.vel,dt);colRes(cam.position,null,P.vel);
- for(const d of planets){const v=_t1.copy(cam.position).sub(d.c);if(v.length()<=d.Rs+EYE+.05&&v.dot(P.vel)<=.01){land(d);break}}
+ for(const d of planets){const v=_t1.copy(cam.position).sub(d.c),L=v.length();if(L<=d.R+EYE+.05&&L<=surfR(d,_v.copy(v).divideScalar(L||1))+EYE+.05&&v.dot(P.vel)<=.01){land(d);break}}
  if(P.mode==='space'&&P.launch<=0){const ag=agList();if(ag.length){const dist=agNearest(cam.position,ag,_cp);if(dist<=EYE+.05&&_t1.copy(cam.position).sub(_cp).dot(P.vel)<=.01)land(AGW)}} // fly close to any anti-gravity block and you stick to it, every time
 }
 function land(d){
@@ -515,7 +561,7 @@ function groundStep(dt){
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(d.spd||11);
  cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
- up.copy(cam.position).sub(d.c).normalize();cam.position.copy(d.c).addScaledVector(up,d.Rs+EYE);
+ up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up);
 }
 /* walking on anti-gravity blocks: "down" = toward the nearest anti-gravity surface, so edges, corners, walls and
@@ -533,8 +579,9 @@ function agGround(dt){
   up.copy(pos).sub(_cp).divideScalar(dist);pos.copy(_cp).addScaledVector(up,EYE)}
  P.agT+=dt;
  for(const d of planets){const v=_c.copy(pos).sub(d.c),L=v.length(); // walked down onto a planet -> planet gravity takes over
-  if(P.agT>1.2&&L<=d.Rs+EYE+.05){land(d);return}
-  if(L<d.Rs+1.3)pos.copy(d.c).addScaledVector(v.divideScalar(L||1),d.Rs+1.3)}
+  if(L>d.R+EYE+.1)continue;const sr=surfR(d,_v.copy(v).divideScalar(L||1));
+  if(P.agT>1.2&&L<=sr+EYE+.05){land(d);return}
+  if(L<sr+1.3)pos.copy(d.c).addScaledVector(_v,sr+1.3)}
  P.hd.applyQuaternion(_q.setFromUnitVectors(old,up));P.hd.addScaledVector(up,-P.hd.dot(up));
  if(P.hd.lengthSq()<1e-6)P.hd.set(1,0,0).addScaledVector(up,-up.x);P.hd.normalize();
  P.up.copy(up);aim(up);
@@ -570,5 +617,5 @@ function loop(){
  stepGlitter(dt);
  ren.render(scene,cam);
 }
-loop();
+gameReady=true;loop();
 </script></body></html>
