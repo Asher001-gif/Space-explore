@@ -42,3 +42,6 @@ Creature HP: peaceful 8, predators 14. Damage per hit: bare hand 1, pickaxe or a
 
 ## Houses on anti-gravity blocks
 Build with anti-gravity blocks and you can walk inside: the floor you stand on is "sticky", so doorways, corridors and rooms no longer flip your gravity onto the doorframe, walls or ceiling. Walk into a wall to climb it. Interior tips: make rooms at least 2 blocks high (3 is comfortable) and doors 1 block wide x 2 blocks high; you can enter walking from a floor outside the door.
+
+## Planet size
+Planets are twice as big (Verdant radius 220, Ember 190): flatter ground for building and more room for houses. Blocks from old saves that would end up inside a planet are returned to your inventory.

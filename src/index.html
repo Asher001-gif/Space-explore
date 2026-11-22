@@ -96,8 +96,8 @@ function cone(g,r,h,c,y,seg=6){const m=new T.Mesh(new T.ConeGeometry(r,h,seg),ma
 const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
 const _M=new T.Matrix4(),_r=new T.Vector3();
 var gameReady=false;
-/* radius of the (smooth, high-detail) planet at any direction: the mesh is a finely tessellated sphere, so this is exact to ~4 cm and costs nothing */
-function surfR(d,n){return d.R-.04}
+/* radius of the (smooth, high-detail) planet at any direction: the mesh is a finely tessellated sphere, so this is exact to ~5 cm and costs nothing */
+function surfR(d,n){return d.R-.05}
 /* smooth 3D value noise -> soft colour patches on the planets (no per-triangle colours) */
 const _h=(x,y,z)=>{let h=Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453;return h-Math.floor(h)};
 function vnoise(x,y,z){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z),fx=x-ix,fy=y-iy,fz=z-iz,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),w=fz*fz*(3-2*fz),L=(a,b,t)=>a+(b-a)*t;
@@ -135,10 +135,10 @@ function skinModel(k,s){const S=SKIN[k],g=new T.Group(),m=skinMat(k),H=S.head,B=
 function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
-{name:'Verdant',c:new T.Vector3(400,30,-150),R:110,atmo:0x7fcfff,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:230,peace:24,pred:7},
-{name:'Ember',c:new T.Vector3(-420,60,-350),R:95,atmo:0xff9a5a,cols:[0xc4552b,0xa8431f,0xd9803a,0x7d3a22],trunk:0x2b2020,leaf:[0xff8a2b,0xffc13b],pc:0x6fd0e0,ph:0x2a6b78,pn:'Glow Hopper 🐰',prn:'Lava Stalker ⚠',pr:0x4a1a14,trees:190,peace:18,pred:8}];
+{name:'Verdant',c:new T.Vector3(400,30,-150),R:220,atmo:0x7fcfff,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:370,peace:36,pred:10},
+{name:'Ember',c:new T.Vector3(-420,60,-350),R:190,atmo:0xff9a5a,cols:[0xc4552b,0xa8431f,0xd9803a,0x7d3a22],trunk:0x2b2020,leaf:[0xff8a2b,0xffc13b],pc:0x6fd0e0,ph:0x2a6b78,pn:'Glow Hopper 🐰',prn:'Lava Stalker ⚠',pr:0x4a1a14,trees:300,peace:27,pred:12}];
 PDEF.forEach(d=>{
- d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,28); // ~17k triangles, smooth normals (vertices sit exactly on the sphere)
+ d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,36); // ~27k triangles, smooth normals (vertices sit exactly on the sphere)
  const P3=g.attributes.position,seed=rnd(0,100),pal=d.cols.map(c=>new T.Color(c)),col=new Float32Array(P3.count*3),tc=new T.Color();
  for(let i=0;i<P3.count;i++){const x=P3.getX(i)/d.R,y=P3.getY(i)/d.R,z=P3.getZ(i)/d.R;
   let t=fbm(x*2.4+seed,y*2.4+seed,z*2.4+seed);t=Math.max(0,Math.min(1,(t-.22)/.56)); // spread the noise over the whole palette
@@ -424,13 +424,16 @@ function loadSave(){
  try{
   const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;
   const d=JSON.parse(raw);if(!d||d.v!==1)return;
+  const refund={};
   (d.blocks||[]).forEach(([type,x,y,z,ag])=>{
    if(!BT[type]||![x,y,z].every(Number.isFinite))return;
    const pos=new T.Vector3(x,y,z),key=x+','+y+','+z;if(blocks.has(key))return;
+   if(planets.some(p=>{const v=pos.clone().sub(p.c),L=v.length();return L<p.R-.9})){refund[type]=(refund[type]||0)+1;return} // planets grew: a block saved inside one comes back to your inventory
    const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(pos);
    const o={kind:'block',type,key,name:BT[type].n,time:.5,pos};reg(m,o);blocks.set(key,o);if(ag)markAG(o);
   });
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
+  for(const k in refund)inv[k]=(inv[k]||0)+refund[k];
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
   if(Number.isFinite(d.t))worldTime=Math.max(0,d.t);
