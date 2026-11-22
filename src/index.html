@@ -322,14 +322,15 @@ function place(type){
  for(const d of planets){ray.far=16;ray.set(cam.position,fwd);const hh=ray.intersectObject(d.mesh,false)[0];if(hh&&hh.distance<tp&&hh.distance<16){tp=hh.distance;pc=d;pn=hh.point.clone().sub(d.c).normalize()}}
  let p;
  if(bh&&bh.distance<=tp)p=bh.object.position.clone().addScaledVector(bh.face.normal,2);
- else if(pc){p=cam.position.clone().addScaledVector(fwd,tp).addScaledVector(pn,1.1).divideScalar(2).round().multiplyScalar(2);
-  const ax=Math.abs(pn.x)>Math.abs(pn.y)&&Math.abs(pn.x)>Math.abs(pn.z)?'x':Math.abs(pn.y)>Math.abs(pn.z)?'y':'z';
-  const sR=surfR(pc,pn);for(let i=0;i<3&&p.distanceTo(pc.c)<sR+1;i++)p[ax]+=Math.sign(pn[ax])*2}
+ else if(pc){ // snap to the grid cell that contains the air just in front of the ground you aim at, so blocks always touch the ground (no floating) and line up on one grid
+  p=cam.position.clone().addScaledVector(fwd,tp-.05).divideScalar(2).round().multiplyScalar(2);
+  for(let i=0;i<3;i++){const v=p.clone().sub(pc.c),L=v.length();if(L>=surfR(pc,v.clone().divideScalar(L||1))-.5)break; // cell mostly buried: lift it one cell along the axis that points away from the planet
+   const a=Math.abs(v.x)>Math.abs(v.y)&&Math.abs(v.x)>Math.abs(v.z)?'x':Math.abs(v.y)>Math.abs(v.z)?'y':'z';p[a]+=Math.sign(v[a])*2}}
  else p=cam.position.clone().addScaledVector(fwd,7).divideScalar(2).round().multiplyScalar(2);
  const key=p.x+','+p.y+','+p.z;
  const feet=P.mode==='ground'?cam.position.clone().addScaledVector(P.up,-1.7):null;
  if(P.mode==='ground'&&P.pl.ag&&sbDist2(cam.position,p)<(EYE+.15)*(EYE+.15)){say('Too close to your feet — aim a little further away');return}
- if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))+.9})){say("Can't place there");return}
+ if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
  const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(p);
  const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
