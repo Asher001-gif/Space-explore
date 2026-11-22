@@ -14,10 +14,13 @@ canvas{display:block;position:fixed;inset:0}
 #cross{left:50%;top:50%;width:18px;height:18px;margin:-9px;border:2px solid #fff;border-radius:50%;opacity:.6}
 #tgt{left:50%;top:calc(50% + 28px);transform:translateX(-50%);text-align:center;min-width:160px}
 #pb{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px;overflow:hidden;display:none}#pb i{display:block;height:100%;width:0;background:var(--good)}
-#hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px}
-.slot{width:70px;height:70px;border:2px solid var(--line);background:var(--panel);border-radius:10px;text-align:center;padding-top:6px;font-size:26px;position:relative}
-.slot img{width:40px;height:40px;object-fit:contain;display:block;margin:0 auto 2px}.ico{width:20px;height:20px;vertical-align:-5px;object-fit:contain}.blk img{width:40px;height:40px;object-fit:contain;display:block;margin:0 auto 4px}
-.slot small{display:block;font-size:11px;opacity:.85}.slot b{position:absolute;left:5px;top:2px;font-size:11px;opacity:.7}
+#hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px}
+.slot{width:min(64px,9vw);height:min(64px,9vw);border:2px solid var(--line);background:var(--panel);border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center}
+.slot img{width:68%;height:68%;object-fit:contain;image-rendering:pixelated;display:block}.ico{width:20px;height:20px;vertical-align:-5px;object-fit:contain}.blk img{width:40px;height:40px;object-fit:contain;display:block;margin:0 auto 4px}
+.slot b{position:absolute;left:4px;top:1px;font-size:11px;opacity:.7}
+.slot i{position:absolute;right:4px;bottom:1px;font:700 13px monospace;font-style:normal;color:#fff;text-shadow:1px 1px 0 #000}
+#hname{left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + min(64px,9vw) + 14px);transform:translateX(-50%);font-weight:700;text-shadow:1px 1px 0 #000;white-space:nowrap;opacity:0;transition:opacity .4s}
+body.inmenu #hot,body.inmenu #hname{visibility:hidden}
 .slot.sel{border-color:#fff;box-shadow:0 0 12px #8fb0ff}
 #toast{left:50%;top:18%;transform:translateX(-50%);padding:8px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;opacity:0;transition:opacity .3s}
 #flash{position:fixed;inset:0;background:red;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -29,14 +32,23 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 .row{display:flex;gap:10px;margin:8px 0;flex-wrap:wrap}.blk{padding:8px 12px;border-radius:8px;border:1px solid var(--line);min-width:90px;text-align:center}
 .blk div{width:28px;height:28px;margin:0 auto 4px;border:2px solid #0006}
 #toast{z-index:6}body.inmenu #toast{top:auto;bottom:120px}
-.card.inv{background:#2b303b;border:3px solid #14161c;border-radius:4px;padding:18px 20px;width:min(580px,96vw);max-width:96vw;max-height:94vh;overflow:auto;font-family:"Courier New",ui-monospace,monospace;backdrop-filter:none}
-.card.inv h2{font-size:14px;letter-spacing:2px;margin:0 0 12px;color:#dfe6ff}
-#grid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px}
-.cell{aspect-ratio:1;background:#1b1e27;box-shadow:inset 2px 2px 0 #0f1117,inset -2px -2px 0 #353b4b;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.cell:hover{background:#252a36}.cell.on{outline:2px solid #ffd35a}.cell.over{background:#313a52}
-.cell img{width:78%;height:78%;object-fit:contain;image-rendering:pixelated;pointer-events:none}
-.cell i{position:absolute;right:3px;bottom:1px;font:700 11px monospace;font-style:normal;color:#fff;text-shadow:1px 1px 0 #000}
-.hint{font-size:11px;opacity:.65;margin:8px 0 14px}
+.card.inv{background:#2b303b;border:3px solid #14161c;border-radius:4px;padding:22px 24px;width:min(1180px,97vw);max-width:97vw;max-height:95vh;overflow:auto;font-family:"Courier New",ui-monospace,monospace;backdrop-filter:none}
+.invwrap{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:24px;align-items:start}
+@media(max-width:980px){.invwrap{grid-template-columns:minmax(0,1fr)}}
+.card.inv h2{font-size:15px;letter-spacing:2px;margin:0 0 12px;color:#dfe6ff}
+#grid,#hbrow{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px}
+#hbrow{margin-top:8px;padding-top:12px;border-top:3px solid #14161c}
+.sub{font-size:11px;letter-spacing:2px;color:#9fb0d8;margin:16px 0 0}
+.cell{aspect-ratio:1;background:#1b1e27;box-shadow:inset 3px 3px 0 #0f1117,inset -3px -3px 0 #353b4b;position:relative;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
+.cell:hover{background:#252a36}.cell.on{outline:3px solid #ffd35a}.cell.cur{outline:3px solid #fff}.cell.over{background:#3a4668}.cell.drag{opacity:.35}
+.cell img{width:76%;height:76%;object-fit:contain;image-rendering:pixelated;pointer-events:none}
+.cell i{position:absolute;right:5px;bottom:2px;font:700 14px monospace;font-style:normal;color:#fff;text-shadow:1px 1px 0 #000;pointer-events:none}
+.cell u{position:absolute;left:5px;top:3px;font:700 11px monospace;text-decoration:none;color:#9fb0d8;pointer-events:none}
+#ghost{position:fixed;z-index:30;pointer-events:none;width:76px;height:76px;margin:-38px 0 0 -38px;opacity:.92}
+#ghost img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated}
+#ghost i{position:absolute;right:2px;bottom:0;font:700 15px monospace;font-style:normal;color:#fff;text-shadow:1px 1px 0 #000}
+.hint{font-size:12px;opacity:.7;margin:12px 0 0;line-height:1.5}
+#cl{margin-top:16px}
 #tabs{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}
 .tab{font:700 12px "Courier New",monospace;color:#e8ecff;background:#3a4050;border:2px solid #14161c;border-radius:2px;padding:7px 12px;margin:0;box-shadow:inset 2px 2px 0 #4c5468,inset -2px -2px 0 #2a2f3b}
 .tab:hover{background:#464e63}.tab.on{background:#4aa02c;box-shadow:inset 2px 2px 0 #6fd04a,inset -2px -2px 0 #357a1c}
@@ -47,16 +59,16 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="loc"></div></div>
 <div id="cross" class="hud"></div>
 <div id="tgt" class="hud"><div id="tn"></div><div id="pb"><i></i></div></div>
-<div id="hot" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div>
+<div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = jump off a planet into space (planets have gravity; space is zero-g)</p>
-<p><b>1-4, 6</b> select slot · <b>5 / Space</b> tap = eat/place, hold = break &amp; collect · <b>0 / E</b> inventory &amp; crafting</p>
+<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space</b> tap = use / eat / place, hold = break &amp; collect · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn at night (19:00–05:00) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core (slot 6): use it on a block to walk around it, Shift / 8 to jump off.</p><button>Click to play</button></div></div>
-<div id="menu"><div class="card inv"><h2>INVENTORY</h2><div id="grid"></div>
-<p class="hint">Drag items (or click, then click a slot) to move &amp; swap · double-click food / medicine to use it</p>
-<h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div><button id="cl">Close (E / 0)</button></div></div>
+<p>⚠ Red animals are predators — they spawn at night (19:00–05:00) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
+<div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
+<p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
+<div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
 <script src="lib/three.min.js"></script>
 <script>
 const T=THREE,$=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a),UP=new T.Vector3(0,1,0);
@@ -81,7 +93,7 @@ function cone(g,r,h,c,y,seg=6){const m=new T.Mesh(new T.ConeGeometry(r,h,seg),ma
 /* ---------- planets ---------- */
 const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
 const _M=new T.Matrix4(),_r=new T.Vector3();
-const planets=[];
+const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
 {name:'Verdant',c:new T.Vector3(400,30,-150),R:110,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:230,peace:24,pred:7},
 {name:'Ember',c:new T.Vector3(-420,60,-350),R:95,cols:[0xc4552b,0xa8431f,0xd9803a,0x7d3a22],trunk:0x2b2020,leaf:[0xff8a2b,0xffc13b],pc:0x6fd0e0,ph:0x2a6b78,pn:'Glow Hopper 🐰',prn:'Lava Stalker ⚠',pr:0x4a1a14,trees:190,peace:18,pred:8}];
@@ -90,17 +102,32 @@ PDEF.forEach(d=>{
  const col=[];for(let i=0;i<g.attributes.position.count;i+=3){const c=new T.Color(d.cols[Math.floor(Math.random()*d.cols.length)]).offsetHSL(0,0,rnd(-.04,.04));for(let j=0;j<3;j++)col.push(c.r,c.g,c.b)}
  g.setAttribute('color',new T.Float32BufferAttribute(col,3));
  const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1}));m.position.copy(d.c);scene.add(m);
- d.animals=[];planets.push(d);
- for(let i=0;i<d.trees;i++)makeTree(d);
+ d.animals=[];d.treeList=[];planets.push(d);
+ for(let i=0;i<d.trees;i++){const n=treeSpot(d,true);if(n)makeTree(d,n)}
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
 });
-function makeTree(d){
- const g=new T.Group(),n=rndDir(),s=rnd(1,1.8),k=Math.random()<.5?0:1;
+function treeSpot(d,init){ // finds an empty spot on the planet: not near other trees, animals, blocks or the player
+ for(let i=0;i<40;i++){
+  const n=rndDir();
+  if(d.treeList.some(t=>t.n.dot(n)>Math.cos(4.5/d.Rs)))continue;
+  if(init)return n;
+  const base=n.clone().multiplyScalar(d.Rs).add(d.c);
+  if(base.distanceTo(cam.position)<10)continue;
+  if(d.animals.some(a=>a.n.dot(n)>Math.cos(3.5/d.Rs)))continue;
+  if(hitTest(n.clone().multiplyScalar(d.Rs+2).add(d.c),3.4)||hitTest(n.clone().multiplyScalar(d.Rs+6).add(d.c),2.8))continue;
+  return n}
+ return null}
+function makeTree(d,n,grow){
+ const g=new T.Group(),s=rnd(1,1.8),k=Math.random()<.5?0:1;n=n||rndDir();
  const tr=new T.Mesh(new T.CylinderGeometry(.35,.5,3,5),mat(d.trunk));tr.position.y=1.5;g.add(tr);
  cone(g,2.2,4,d.leaf[k],4.5,6);cone(g,1.6,3.2,d.leaf[k],6.6,6);
- g.scale.setScalar(s);g.position.copy(n).multiplyScalar(d.Rs).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
- reg(g,{kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2});
-}
+ g.scale.setScalar(grow?.02:s);g.position.copy(n).multiplyScalar(d.Rs).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
+ const o={kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2,pl:d,n,s,gt:0};
+ reg(g,o);d.treeList.push(o);if(grow)growing.push(o);return o}
+function treeTick(dt){
+ for(let i=regrow.length-1;i>=0;i--){const r=regrow[i];r.t-=dt;if(r.t>0)continue;
+  const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
+ for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
 function orient(a){_r.crossVectors(a.n,a.t).normalize();_M.makeBasis(_r,a.n,a.t);a.root.quaternion.setFromRotationMatrix(_M);a.root.position.copy(a.n).multiplyScalar(a.pl.Rs).add(a.pl.c)}
 function spawnDir(d){let n;for(let i=0;i<12;i++){n=rndDir();if(n.clone().multiplyScalar(d.Rs).add(d.c).distanceTo(cam.position)>35)break}return n}
 function makeAnimal(d,pred){
@@ -188,18 +215,41 @@ function mkItem(kind){
 const ICON={};['wood','stone','hull'].forEach(k=>ICON[k]=mkIcon(k));ICON.anti=mkIcon('anti');
 ['pickaxe','axe','spear','cooked','stew','bandage','medkit'].forEach(k=>ICON[k]=mkItem(k));
 const blocks=new Map();
+/* ---------- anti-gravity blocks: the flag lives on the block (saved), spreads to every connected block ---------- */
+const agGeo=new T.BoxGeometry(2,2,2),agMat=new T.MeshBasicMaterial({color:0x7af3ff,transparent:true,opacity:.18,blending:T.AdditiveBlending,depthWrite:false}),agEdge=new T.LineBasicMaterial({color:0x9ff8ff,transparent:true,opacity:.9});
+const AGW={name:'Anti-Gravity Blocks',ag:true,spd:9,animals:[]};
+const _cp=new T.Vector3(),_a=new T.Vector3(),_b=new T.Vector3(),_c=new T.Vector3(),_q=new T.Quaternion();
+const N26=[];for(let x=-2;x<=2;x+=2)for(let y=-2;y<=2;y+=2)for(let z=-2;z<=2;z+=2)if(x||y||z)N26.push([x,y,z]);
+const nbrs=o=>{const r=[];for(const[a,b,c]of N26){const n=blocks.get((o.pos.x+a)+','+(o.pos.y+b)+','+(o.pos.z+c));if(n)r.push(n)}return r};
+let agArr=[],agDirty=true;
+const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag);agDirty=false}return agArr};
+function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;o.name=BT[o.type].n+' (anti-gravity)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
+function floodAG(start){let n=0;const q=[start],seen=new Set(q);while(q.length){const o=q.pop();if(markAG(o))n++;for(const m of nbrs(o))if(!seen.has(m)){seen.add(m);q.push(m)}}return n}
+function agNearest(p,list,out){ // closest point on the surface of any anti-gravity block
+ let best=Infinity,bx=0,by=0,bz=0;
+ for(let i=0;i<list.length;i++){const b=list[i].pos,x=Math.max(b.x-1,Math.min(b.x+1,p.x)),y=Math.max(b.y-1,Math.min(b.y+1,p.y)),z=Math.max(b.z-1,Math.min(b.z+1,p.z)),dx=p.x-x,dy=p.y-y,dz=p.z-z,d2=dx*dx+dy*dy+dz*dz;if(d2<best){best=d2;bx=x;by=y;bz=z}}
+ out.set(bx,by,bz);return Math.sqrt(best)}
 const inv={food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const ITEMS={
  wood:{n:'Wood',img:'wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
  food:{n:'Meat',img:'meat',use:{hg:25}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
- anti:{n:'Anti-Gravity Core',img:ICON.anti,d:'Hotbar slot 6 - aim at a block, tap 5/Space'},
+ anti:{n:'Anti-Gravity Core',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5/Space'},
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 2x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 2x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
-const layout=new Array(36).fill(null);
-const SL=[{k:'food',img:'meat',n:'Food'},{k:'wood',img:ICON.wood,n:'Wood'},{k:'stone',img:ICON.stone,n:'Stone'},{k:'hull',img:ICON.hull,n:'Hull'},{k:'anti',img:ICON.anti,n:'Anti-G',key:'6'}];
+const layout=new Array(36).fill(null); // 0-26 backpack · 27-35 hotbar (quick inventory)
+const HB=27,HLAB=['1','2','3','4','6','7','9','',''];
+const ORDER=['food','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','stew','bandage','medkit'];
 let sel=0;
-const hot=$('hot');SL.forEach((s,i)=>{const d=document.createElement('div');d.className='slot';d.innerHTML=`<b>${s.key||i+1}</b><img src="${imgSrc(s.img)}" alt="${s.n}"><small></small>`;hot.appendChild(d);s.el=d});
+const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
+for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
+function renderHot(){ // empty slots show nothing at all; counts only when > 1
+ for(let i=0;i<9;i++){const s=hslots[i],k=layout[HB+i],c=k?inv[k]:0;
+  if(s.k!==k){s.k=k;if(k){s.img.src=imgSrc(ITEMS[k].img);s.img.style.display='block'}else{s.img.removeAttribute('src');s.img.style.display='none'}}
+  if(s.c!==c){s.c=c;s.n.textContent=c>1?c:''}
+  s.el.classList.toggle('sel',i===sel)}
+ const k=layout[HB+sel];
+ if(sel!==hLS||k!==hLK){hLS=sel;hLK=k;hn.textContent=k?ITEMS[k].n:'';hn.style.opacity=k?1:0;clearTimeout(hTm);hTm=setTimeout(()=>hn.style.opacity=0,1600)}}
 function place(type){
  ray.far=16;ray.set(cam.position,fwd);
  const bh=ray.intersectObjects(targets.filter(m=>m.userData.o.kind==='block'),false)[0];
@@ -212,13 +262,14 @@ function place(type){
   for(let i=0;i<3&&p.distanceTo(pc.c)<pc.Rs+1;i++)p[ax]+=Math.sign(pn[ax])*2}
  else p=cam.position.clone().addScaledVector(fwd,7).divideScalar(2).round().multiplyScalar(2);
  const key=p.x+','+p.y+','+p.z;
- const feet=P.mode==='ground'?cam.position.clone().addScaledVector(_t1.copy(cam.position).sub(P.pl.c).normalize(),-1.7):null;
+ const feet=P.mode==='ground'?cam.position.clone().addScaledVector(P.up,-1.7):null;
+ if(P.mode==='ground'&&P.pl.ag&&sbDist2(cam.position,p)<(EYE+.15)*(EYE+.15)){say('Too close to your feet — aim a little further away');return}
  if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||planets.some(d=>p.distanceTo(d.c)<d.Rs+.9)){say("Can't place there");return}
  const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(p);
- const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;save();
+ const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p};reg(m,o);blocks.set(key,o);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
 /* ---------- player ---------- */
-const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0};
+const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0};
 cam.position.copy(START);
 /* ---------- day/night clock + animal spawn/despawn ---------- */
 const DAY_LEN=240;let worldTime=0,isNight=false,spawnT=0;
@@ -267,38 +318,37 @@ function useAnti(){
  const bh=ray.intersectObjects(targets.filter(m=>m.userData.o.kind==='block'),false)[0];
  if(!bh){say('Aim at a block to use it on');return}
  const o=bh.object.userData.o,n=bh.face.normal.clone().round();
- inv.anti--;
- const d={name:'Anti-Gravity Block',c:o.pos.clone(),Rs:1,R:1,host:o,spd:5,animals:[],rf:u=>1/Math.max(Math.abs(u.x),Math.abs(u.y),Math.abs(u.z),1e-4)};
+ const cnt=floodAG(o); // this block + every block connected to it
+ if(cnt>0){inv.anti--;glitter(o.pos);save()}
  cam.position.copy(o.pos).addScaledVector(n,1+EYE);
- land(d);glitter(o.pos);save();
- say('Anti-gravity on! Walk around the block · Shift / 8 to jump off');
-}
+ land(AGW);
+ say(cnt>0?'Anti-gravity on for '+cnt+' connected block'+(cnt>1?'s':'')+' ✨ Walk anywhere on them · Shift / 8 to jump off':'Already anti-gravity — walk on it · Shift / 8 to jump off')}
 /* ---------- save / load (localStorage) ---------- */
 const SAVE_KEY='spaceExplore.save.v1';
 function save(){
  try{
-  const b=[];blocks.forEach(o=>b.push([o.type,o.pos.x,o.pos.y,o.pos.z]));
-  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,lay:layout}));
+  const b=[];blocks.forEach(o=>b.push([o.type,o.pos.x,o.pos.y,o.pos.z,o.ag?1:0]));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:2,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,lay:layout}));
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
 }
 function loadSave(){
  try{
   const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;
   const d=JSON.parse(raw);if(!d||d.v!==1)return;
-  (d.blocks||[]).forEach(([type,x,y,z])=>{
+  (d.blocks||[]).forEach(([type,x,y,z,ag])=>{
    if(!BT[type]||![x,y,z].every(Number.isFinite))return;
    const pos=new T.Vector3(x,y,z),key=x+','+y+','+z;if(blocks.has(key))return;
    const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(pos);
-   const o={kind:'block',type,key,name:BT[type].n,time:.5,pos};reg(m,o);blocks.set(key,o);
+   const o={kind:'block',type,key,name:BT[type].n,time:.5,pos};reg(m,o);blocks.set(key,o);if(ag)markAG(o);
   });
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
   if(Number.isFinite(d.t))worldTime=Math.max(0,d.t);
-  if(Array.isArray(d.lay)&&d.lay.length===36)d.lay.forEach((k,i)=>{layout[i]=ITEMS[k]?k:null});
+  if(d.lv===2&&Array.isArray(d.lay)&&d.lay.length===36)d.lay.forEach((k,i)=>{layout[i]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
  }catch(e){/* corrupt save - ignore and start fresh */}
 }
-loadSave();
+loadSave();syncGrid();
 setInterval(save,3000);
 addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
@@ -308,18 +358,20 @@ function say(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeou
 function hurt(x){P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
 function die(){say('You died — respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;$('ov').style.display=v?'none':'flex'}
-function openMenu(v){ui=v;selSlot=null;document.body.classList.toggle('inmenu',v);$('menu').style.display=v?'flex':'none';if(v){document.exitPointerLock&&document.exitPointerLock();refreshMenu()}else try{ren.domElement.requestPointerLock()}catch(e){}}
-let selSlot=null,dragFrom=null,tab='Tools';
+function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
+function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
+let selSlot=null,dnd=null,lastClk={t:0,i:-1},tab='Tools';
 const RECIPES={
  Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{wood:2,stone:3},d:'Mine asteroids & blocks 2x faster',once:1},{n:'Axe',give:{axe:1},cost:{wood:2,stone:2},d:'Chop trees 2x faster',once:1},{n:'Spear',give:{spear:1},cost:{wood:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
  Materials:[{n:'Hull x2',give:{hull:2},cost:{wood:1,stone:1},d:'Strong blocks for building',img:'hull'}],
  Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,wood:1},d:'+50 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
  Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,wood:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
-function syncGrid(){
- for(let i=0;i<36;i++){const k=layout[i];if(k&&!(inv[k]>0))layout[i]=null}
- for(const k in ITEMS)if(inv[k]>0&&!layout.includes(k)){const e=layout.indexOf(null);if(e>=0)layout[e]=k}
+function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
+ for(let i=0;i<36;i++){const k=layout[i];if(k&&(!(inv[k]>0)||layout.indexOf(k)!==i))layout[i]=null}
+ for(const k of ORDER)if(inv[k]>0&&!layout.includes(k)){let e=layout.indexOf(null,HB);if(e<0)e=layout.indexOf(null);if(e>=0)layout[e]=k}
 }
 function moveSlot(a,b){if(a===b||a==null||b==null)return;const t=layout[a];layout[a]=layout[b];layout[b]=t;save()}
+function quickMove(i){const k=layout[i];if(!k)return;const lo=i<HB?HB:0,hi=i<HB?36:HB;for(let j=lo;j<hi;j++)if(!layout[j]){layout[j]=k;layout[i]=null;save();return}say(i<HB?'Hotbar is full':'Backpack is full')}
 function useItem(k){
  const it=ITEMS[k];if(!it||inv[k]<=0)return;
  if(!it.use){say(it.d||it.n);return}
@@ -330,22 +382,47 @@ function useItem(k){
  say('Used '+it.n+(u.hg?': +'+u.hg+' hunger':': +'+u.hp+' health'));save();refreshMenu();
 }
 function renderGrid(){
- const g=$('grid');g.innerHTML='';
+ const g=$('grid'),hb=$('hbrow');g.innerHTML='';hb.innerHTML='';
  for(let i=0;i<36;i++){
-  const k=layout[i],d=document.createElement('div');d.className='cell'+(selSlot===i?' on':'');
-  if(k){const it=ITEMS[k];d.draggable=true;d.title=it.n+(it.use?' - double-click to use':(it.d?' - '+it.d:''));
-   d.innerHTML='<img src="'+imgSrc(it.img)+'" alt="">'+(inv[k]>1?'<i>'+inv[k]+'</i>':'')}
-  d.ondragstart=e=>{dragFrom=i;e.dataTransfer.setData('text/plain',String(i));e.dataTransfer.effectAllowed='move'};
-  d.ondragover=e=>{e.preventDefault();d.classList.add('over')};d.ondragleave=()=>d.classList.remove('over');
-  d.ondrop=e=>{e.preventDefault();if(dragFrom!=null)moveSlot(dragFrom,i);dragFrom=null;selSlot=null;renderGrid()};
-  d.onclick=()=>{
-   if(selSlot==null){if(layout[i]){selSlot=i;d.classList.add('on')}}
-   else if(selSlot===i){selSlot=null;d.classList.remove('on')}
-   else{moveSlot(selSlot,i);selSlot=null;renderGrid()}};
-  d.ondblclick=()=>{if(layout[i])useItem(layout[i])};
-  g.appendChild(d);
+  const k=layout[i],d=document.createElement('div');d.className='cell'+(selSlot===i?' on':'')+(i>=HB&&i-HB===sel?' cur':'');d.dataset.i=i;
+  let h=i>=HB&&HLAB[i-HB]?'<u>'+HLAB[i-HB]+'</u>':'';
+  if(k){const it=ITEMS[k];d.title=it.n+(it.use?' - double-click to use':(it.d?' - '+it.d:''));h+='<img src="'+imgSrc(it.img)+'" alt="">'+(inv[k]>1?'<i>'+inv[k]+'</i>':'')}
+  d.innerHTML=h;
+  d.onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();dnd={from:i,sx:e.clientX,sy:e.clientY,moved:false,ghost:null,shift:e.shiftKey}};
+  d.oncontextmenu=e=>{e.preventDefault();if(layout[i])useItem(layout[i])};
+  (i<HB?g:hb).appendChild(d);
  }
 }
+function cancelDnd(){if(dnd&&dnd.ghost)dnd.ghost.remove();dnd=null;document.querySelectorAll('.cell.over').forEach(x=>x.classList.remove('over'))}
+function cellAt(x,y){const el=document.elementFromPoint(x,y);return el&&el.closest?el.closest('.cell'):null}
+function clickCell(i,shift){ // plain click: select / swap, shift = quick move, double = use
+ const now=performance.now();
+ if(layout[i]&&lastClk.i===i&&now-lastClk.t<350){lastClk.i=-1;selSlot=null;useItem(layout[i]);renderGrid();return}
+ lastClk={t:now,i};
+ if(shift&&layout[i]){quickMove(i);selSlot=null}
+ else if(selSlot==null){if(layout[i])selSlot=i}
+ else if(selSlot===i)selSlot=null;
+ else{moveSlot(selSlot,i);selSlot=null}
+ renderGrid();
+}
+addEventListener('pointermove',e=>{ // custom pointer drag & drop (mouse + touch)
+ if(!dnd)return;
+ if(!dnd.moved){
+  if(!layout[dnd.from]||Math.hypot(e.clientX-dnd.sx,e.clientY-dnd.sy)<6)return;
+  dnd.moved=true;const k=layout[dnd.from],gh=document.createElement('div');gh.id='ghost';
+  gh.innerHTML='<img src="'+imgSrc(ITEMS[k].img)+'" alt="">'+(inv[k]>1?'<i>'+inv[k]+'</i>':'');document.body.appendChild(gh);dnd.ghost=gh;
+  const c=document.querySelector('.cell[data-i="'+dnd.from+'"]');if(c)c.classList.add('drag');
+ }
+ dnd.ghost.style.left=e.clientX+'px';dnd.ghost.style.top=e.clientY+'px';
+ document.querySelectorAll('.cell.over').forEach(x=>x.classList.remove('over'));
+ const t=cellAt(e.clientX,e.clientY);if(t)t.classList.add('over');
+});
+addEventListener('pointerup',e=>{
+ if(!dnd)return;const s=dnd;cancelDnd();
+ if(s.moved){const t=cellAt(e.clientX,e.clientY);if(t)moveSlot(s.from,+t.dataset.i);selSlot=null;renderGrid()}
+ else clickCell(s.from,s.shift||e.shiftKey);
+});
+addEventListener('pointercancel',()=>{if(dnd){cancelDnd();if(ui)renderGrid()}});
 const costTxt=c=>Object.entries(c).map(([k,n])=>'<span class="'+(inv[k]>=n?'':'no')+'">'+n+' '+ITEMS[k].n+(inv[k]>=n?'':' ('+(inv[k]|0)+')')+'</span>').join(' + ');
 function canCraft(r){return Object.entries(r.cost).every(([k,n])=>inv[k]>=n)&&!(r.once&&Object.keys(r.give).some(k=>inv[k]>0))}
 function craft(r){
@@ -363,36 +440,39 @@ function renderCrafting(){
   const b=document.createElement('button');b.textContent=owned?'Owned':'Craft';b.disabled=!canCraft(rc);b.onclick=()=>craft(rc);row.appendChild(b);r.appendChild(row);
  });
 }
-function refreshMenu(){syncGrid();renderGrid();renderCrafting()}
+function refreshMenu(){syncGrid();if(ui){renderGrid();renderCrafting()}}
 $('ov').onclick=()=>{setActive(true);try{ren.domElement.requestPointerLock()}catch(e){}};
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===ren.domElement;if(!locked&&!ui)setActive(false)});
 ren.domElement.addEventListener('mousedown',()=>{drag=true});addEventListener('mouseup',()=>drag=false);
-addEventListener('mousemove',e=>{if(!active||ui||!(locked||drag))return;const dx=e.movementX*.0022;if(P.mode==='ground')P.hd.applyAxisAngle(_up.copy(cam.position).sub(P.pl.c).normalize(),-dx);else P.yaw-=dx;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-e.movementY*.0022))});
+addEventListener('mousemove',e=>{if(!active||ui||!(locked||drag))return;const dx=e.movementX*.0022;if(P.mode==='ground')P.hd.applyAxisAngle(P.up,-dx);else P.yaw-=dx;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-e.movementY*.0022))});
 $('cl').onclick=()=>openMenu(false);
 let hold=null;
+const HKEY={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Digit6:4,Digit7:5,Digit9:6,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3,Numpad6:4,Numpad7:5,Numpad9:6};
 addEventListener('keydown',e=>{
  const c=e.code;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c))e.preventDefault();
- if(c==='Escape'){if(ui){ui=false;$('menu').style.display='none'}setActive(false);return}
+ if(c==='Escape'){if(ui)closeMenu(false);setActive(false);return}
  if(!active||e.repeat)return;keys[c]=true;
  if(c==='Digit0'||c==='KeyE'||c==='Numpad0')openMenu(!ui);
- else if(/^Digit[1-4]$/.test(c))sel=+c[5]-1;
- else if(c==='Digit6'||c==='Numpad6')sel=4;
+ else if(ui)return; // while the inventory is open only E / 0 / Esc do anything
+ else if(c in HKEY)sel=HKEY[c];
+ else if(c==='BracketLeft')sel=(sel+8)%9;
+ else if(c==='BracketRight')sel=(sel+1)%9;
  else if(c==='Digit8'||c==='Numpad8'||c==='ShiftLeft'||c==='ShiftRight')jump();
- else if((c==='Digit5'||c==='Space')&&!ui&&!hold)hold={t:performance.now(),broke:false,o:null,p:0};
+ else if((c==='Digit5'||c==='Space')&&!hold)hold={t:performance.now(),broke:false,o:null,p:0};
 });
+addEventListener('wheel',e=>{if(!active||ui)return;sel=(sel+(e.deltaY>0?1:8))%9},{passive:true});
 addEventListener('keyup',e=>{keys[e.code]=false;
  if((e.code==='Digit5'||e.code==='Space')&&hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}});
-function tap(){
- const k=SL[sel].k;if(k==='food'){if(inv.food+inv.apple<=0){say('No food left');return}
-  if(P.hg>=100){say("You're full");return}
-  if(inv.food>0){inv.food--;P.hg=Math.min(100,P.hg+25);say('Ate meat: +25 hunger')}else{inv.apple--;P.hg=Math.min(100,P.hg+15);say('Ate apple: +15 hunger')}return}
+function tap(){ // use whatever is in the selected hotbar slot
+ const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
- if(inv[k]<=0){say('No '+SL[sel].n+' left');return}place(k)}
+ if(BT[k]){if(inv[k]>0)place(k);return}
+ const it=ITEMS[k];if(it.use)useItem(k);else say(it.d||it.n)}
 function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?2:1):o.kind==='tree'?(inv.axe>0?2:1):o.kind==='animal'?(inv.spear>0?2.5:1):1}
 function finish(o){
  unreg(o);const D={};
- if(o.kind==='block'){blocks.delete(o.key);inv[o.type]++;D.t=BT[o.type].n;save()}
- else if(o.kind==='tree'){inv.wood+=2;let f=Math.random()<.6?1:0;inv.apple+=f;say('+2 wood'+(f?', +1 apple':''))}
+ if(o.kind==='block'){blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
+ else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}inv.wood+=2;let f=Math.random()<.6?1:0;inv.apple+=f;say('+2 wood'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred||Math.random()<.25){inv.anti++;m+=', +1 Anti-Gravity Core ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
@@ -405,7 +485,7 @@ function colRes(pos,up,vel,skip){
  for(let it=0;it<2;it++)for(const[off,r]of probes){
   _p.copy(pos);if(up)_p.addScaledVector(up,-off);
   const push=(nx,ny,nz,amt)=>{_n.set(nx,ny,nz);if(up)_n.addScaledVector(up,-_n.dot(up));const l=_n.length();if(l<1e-4)return;_n.multiplyScalar(1/l);pos.addScaledVector(_n,amt);_p.addScaledVector(_n,amt);if(vel){const vn=vel.dot(_n);if(vn<0)vel.addScaledVector(_n,-vn)}};
-  for(const o of blocks.values()){if(o===skip)continue;const b=o.pos,x=Math.max(b.x-1,Math.min(b.x+1,_p.x)),y=Math.max(b.y-1,Math.min(b.y+1,_p.y)),z=Math.max(b.z-1,Math.min(b.z+1,_p.z)),dx=_p.x-x,dy=_p.y-y,dz=_p.z-z,d2=dx*dx+dy*dy+dz*dz;
+  for(const o of blocks.values()){if(skip&&skip(o))continue;const b=o.pos,x=Math.max(b.x-1,Math.min(b.x+1,_p.x)),y=Math.max(b.y-1,Math.min(b.y+1,_p.y)),z=Math.max(b.z-1,Math.min(b.z+1,_p.z)),dx=_p.x-x,dy=_p.y-y,dz=_p.z-z,d2=dx*dx+dy*dy+dz*dz;
    if(d2<r*r){const d=Math.sqrt(d2);if(d>1e-5)push(dx/d,dy/d,dz/d,r-d);else push(up?up.x:0,up?up.y:1,up?up.z:0,r)}}
   for(const a of asteroids){const dx=_p.x-a.pos.x,dy=_p.y-a.pos.y,dz=_p.z-a.pos.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=a.rad+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)}
  }
@@ -417,26 +497,50 @@ function spaceStep(dt){
  else{const[f,r]=inp(),want=fwd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(36);P.vel.lerp(want,1-Math.exp(-6*dt))}
  cam.position.addScaledVector(P.vel,dt);colRes(cam.position,null,P.vel);
  for(const d of planets){const v=_t1.copy(cam.position).sub(d.c);if(v.length()<=d.Rs+EYE+.05&&v.dot(P.vel)<=.01){land(d);break}}
+ if(P.mode==='space'&&P.launch<=0){const ag=agList();if(ag.length){const dist=agNearest(cam.position,ag,_cp);if(dist<=EYE+.05&&_t1.copy(cam.position).sub(_cp).dot(P.vel)<=.01)land(AGW)}} // fly close to any anti-gravity block and you stick to it, every time
 }
 function land(d){
- P.mode='ground';P.pl=d;cam.getWorldDirection(fwd);const up=_up.copy(cam.position).sub(d.c).normalize();
+ P.mode='ground';P.pl=d;P.agT=0;cam.getWorldDirection(fwd);const up=P.up;
+ if(d.ag){const dist=agNearest(cam.position,agList(),_cp);up.set(0,1,0);if(dist>1e-4&&isFinite(dist))up.copy(cam.position).sub(_cp).divideScalar(dist)}
+ else up.copy(cam.position).sub(d.c).normalize();
  P.pitch=Math.max(-1.5,Math.min(1.5,Math.asin(Math.max(-1,Math.min(1,fwd.dot(up))))));
- P.hd.copy(fwd).addScaledVector(up,-fwd.dot(up));if(P.hd.lengthSq()<.01)P.hd.set(1,0,0).addScaledVector(up,-up.x);P.hd.normalize();
- P.vel.set(0,0,0);say('Landed on '+d.name+' — Shift / 8 to jump back to space');
+ P.hd.copy(fwd).addScaledVector(up,-fwd.dot(up));
+ if(P.hd.lengthSq()<.01){P.hd.set(0,0,1).addScaledVector(up,-up.z);if(P.hd.lengthSq()<.01)P.hd.set(1,0,0).addScaledVector(up,-up.x)}
+ P.hd.normalize();P.vel.set(0,0,0);say('Landed on '+d.name+' — Shift / 8 to jump back to space');
 }
+function aim(up){const l=_t1.copy(P.hd).multiplyScalar(Math.cos(P.pitch)).addScaledVector(up,Math.sin(P.pitch));cam.up.copy(up);cam.lookAt(cam.position.x+l.x,cam.position.y+l.y,cam.position.z+l.z)}
 function groundStep(dt){
- const d=P.pl;if(d.host&&blocks.get(d.host.key)!==d.host){jump();say('The block is gone — free flight!');return}
- const up=_up.copy(cam.position).sub(d.c).normalize();
+ const d=P.pl;if(d.ag){agGround(dt);return}
+ const up=P.up.copy(cam.position).sub(d.c).normalize();
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(d.spd||11);
- cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,d.host);
- up.copy(cam.position).sub(d.c).normalize();cam.position.copy(d.c).addScaledVector(up,(d.rf?d.rf(up):d.Rs)+EYE);
- P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();
- const look=_t1.copy(P.hd).multiplyScalar(Math.cos(P.pitch)).addScaledVector(up,Math.sin(P.pitch));
- cam.up.copy(up);cam.lookAt(cam.position.x+look.x,cam.position.y+look.y,cam.position.z+look.z);
+ cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
+ up.copy(cam.position).sub(d.c).normalize();cam.position.copy(d.c).addScaledVector(up,d.Rs+EYE);
+ P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up);
+}
+/* walking on anti-gravity blocks: "down" = toward the nearest anti-gravity surface, so edges, corners, walls and
+   the undersides of every connected block are all walkable. The heading is carried around with the up vector. */
+function agGround(dt){
+ const ag=agList();if(!ag.length){jump();say('The anti-gravity blocks are gone — free flight!');return}
+ const old=_a.copy(P.up),pos=cam.position;
+ P.hd.addScaledVector(old,-P.hd.dot(old));if(P.hd.lengthSq()<1e-6)P.hd.set(1,0,0).addScaledVector(old,-old.x);P.hd.normalize();
+ rgt.crossVectors(P.hd,old).normalize();
+ const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(AGW.spd);
+ pos.addScaledVector(want,dt);colRes(pos,old,null,o=>o.ag);
+ const up=_b.copy(old);
+ for(let i=0;i<3;i++){const dist=agNearest(pos,ag,_cp);
+  if(!isFinite(dist)||dist<1e-4||Math.abs(dist-EYE)<2e-3)continue; // already hovering at the right height: keep the current "up" (no flicker at inside corners)
+  up.copy(pos).sub(_cp).divideScalar(dist);pos.copy(_cp).addScaledVector(up,EYE)}
+ P.agT+=dt;
+ for(const d of planets){const v=_c.copy(pos).sub(d.c),L=v.length(); // walked down onto a planet -> planet gravity takes over
+  if(P.agT>1.2&&L<=d.Rs+EYE+.05){land(d);return}
+  if(L<d.Rs+1.3)pos.copy(d.c).addScaledVector(v.divideScalar(L||1),d.Rs+1.3)}
+ P.hd.applyQuaternion(_q.setFromUnitVectors(old,up));P.hd.addScaledVector(up,-P.hd.dot(up));
+ if(P.hd.lengthSq()<1e-6)P.hd.set(1,0,0).addScaledVector(up,-up.x);P.hd.normalize();
+ P.up.copy(up);aim(up);
 }
 function jump(){
- if(P.mode!=='ground')return;cam.getWorldDirection(fwd);const up=_up.copy(cam.position).sub(P.pl.c).normalize();
+ if(P.mode!=='ground')return;cam.getWorldDirection(fwd);const up=_a.copy(P.up);
  P.yaw=Math.atan2(-fwd.x,-fwd.z);P.pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y)));
  P.vel.copy(up).multiplyScalar(36);P.launch=1.3;P.mode='space';P.pl=null;say('Released from gravity — free flight!');
 }
@@ -460,8 +564,9 @@ function loop(){
    if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   $('hp').firstChild.style.width=Math.max(0,P.hp)+'%';$('hg').firstChild.style.width=P.hg+'%';
-  SL.forEach((s,i)=>{s.el.classList.toggle('sel',i===sel);s.el.querySelector('small').textContent=s.n+' ×'+(s.k==='food'?inv.food+inv.apple:inv[s.k])});
+  treeTick(dt);
  }
+ syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
  stepGlitter(dt);
  ren.render(scene,cam);
 }
