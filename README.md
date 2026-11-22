@@ -35,3 +35,7 @@ Creatures use pixel-art skin sheets (`src/img/skin_*.png`, green screen removed)
 
 ## Death messages
 When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).
+
+## Controls: 5 / Space / left-click
+Tap = place block / eat selected food · hold = break blocks, trees, asteroids (or keep eating food) · aimed at a creature = hit it.
+Creature HP: peaceful 8, predators 14. Damage per hit: bare hand 1, pickaxe or axe 2, spear 5 → peaceful dies in 8 / 4 / 2 hits, predators in 14 / 7 / 3. Reach: 6 (spear 8). The target label shows the creature's HP.

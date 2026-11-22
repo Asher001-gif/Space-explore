@@ -65,7 +65,7 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = jump off a planet into space (planets have gravity; space is zero-g)</p>
-<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space</b> tap = use / eat / place, hold = eat food / break &amp; collect · <b>0 / E</b> inventory (drag items into the hotbar)</p>
+<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
 <p>⚠ Red animals are predators — they spawn at night (19:00–05:00) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
@@ -175,10 +175,11 @@ function spawnDir(d){let n;for(let i=0;i<40;i++){n=rndDir();
 function makeAnimal(d,pred){
  const s=pred?1.5:1,g=skinModel(pred?'pred':(d.name==='Verdant'?'calm':'fall'),s);
  const n=spawnDir(d),v=rndDir(),t=v.addScaledVector(n,-v.dot(n)).normalize();
- const a={kind:'animal',pred,pl:d,n,t,s,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,cd:0,turn:0,tw:0,idle:0,base:new T.Vector3(),cs:AS.map(()=>({p:new T.Vector3(),r:1}))};
+ const a={kind:'animal',pred,pl:d,n,t,s,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,hp:pred?14:8,mhp:pred?14:8,cd:0,turn:0,tw:0,idle:0,base:new T.Vector3(),cs:AS.map(()=>({p:new T.Vector3(),r:1}))};
  a.root=g;setBase(a);orient(a);animalCS(a);reg(g,a);d.animals.push(a);
 }
 function stepAnimal(a,dt){
+ if(!a.dying&&a.root.scale.x>1.001)a.root.scale.setScalar(Math.max(1,a.root.scale.x-dt*1.2)); // hit squash fades
  const pl=a.pl;a.cd-=dt;a.block-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
  const tan=()=>toP.clone().addScaledVector(a.n,-toP.dot(a.n)).normalize();
  if(a.block>0){sp*=.7}
@@ -525,11 +526,25 @@ addEventListener('keydown',e=>{
  else if(c==='BracketLeft')sel=(sel+8)%9;
  else if(c==='BracketRight')sel=(sel+1)%9;
  else if(c==='Digit8'||c==='Numpad8'||c==='ShiftLeft'||c==='ShiftRight')jump();
- else if((c==='Digit5'||c==='Space')&&!hold)hold={t:performance.now(),broke:false,o:null,p:0};
+ else if(c==='Digit5'||c==='Space')actDown();
 });
 addEventListener('wheel',e=>{if(!active||ui)return;sel=(sel+(e.deltaY>0?1:8))%9},{passive:true});
 addEventListener('keyup',e=>{keys[e.code]=false;
- if((e.code==='Digit5'||e.code==='Space')&&hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}});
+ if(e.code==='Digit5'||e.code==='Space')actUp()});
+addEventListener('mousedown',e=>{if(e.button===0&&active&&!ui)actDown()});
+addEventListener('mouseup',e=>{if(e.button===0)actUp()});
+let aimObj=null,hitCD=0;
+function actDown(){ // 5 / Space / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
+ if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
+ const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&aimObj.kind==='animal'){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
+function actUp(){if(hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}}
+/* melee: bare hand 1 dmg, pickaxe/axe 2, spear 5 (peaceful 8 HP, predators 14 HP) */
+function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
+ const sp=inv.spear>0,dmg=sp?5:(inv.pickaxe>0||inv.axe>0)?2:1,reach=sp?8:6;
+ const gap=Math.min(...o.cs.map(c=>cam.position.distanceTo(c.p)-c.r));
+ if(gap>reach){say('Too far — get closer');hitCD=now+400;return}
+ hitCD=now+300;o.hp-=dmg;if(!o.dying)o.root.scale.setScalar(1.15);
+ if(o.hp<=0){finish(o);aimObj=null}}
 function tap(){ // use whatever is in the selected hotbar slot
  const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
@@ -631,10 +646,12 @@ function loop(){
   spawnTick(dt);planets.forEach(d=>d.animals.forEach(a=>stepAnimal(a,dt)));
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
-  $('tn').innerHTML=o?(o.kind==='animal'?'<img class="ico" src="img/heart.png"> ':'')+o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':''):'';
-  if(hold){const held=performance.now()-hold.t,hk=layout[HB+sel];
+  $('tn').innerHTML=o?(o.kind==='animal'?'<img class="ico" src="img/heart.png"> ':'')+o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='animal'?'  ♥ '+Math.max(0,Math.ceil(o.hp))+'/'+o.mhp:''):'';
+  aimObj=o;
+  if(hold){const held=performance.now()-hold.t,now=performance.now(),hk=layout[HB+sel];
    if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
     if(held>250&&hk&&ITEMS[hk].use){hold.e=(hold.e||0)+dt/.7;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.e*100)+'%';if(hold.e>=1){hold.e=0;useItem(hk)}}else $('pb').style.display='none'}
+   else if(o&&o.kind==='animal'){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
    else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   $('hp').firstChild.style.width=Math.max(0,P.hp)+'%';$('hg').firstChild.style.width=P.hg+'%';
