@@ -32,3 +32,6 @@ Everything is solid: you, animals/predators, trees, blocks and asteroids all col
 
 ## Skins & icons
 Creatures use pixel-art skin sheets (`src/img/skin_*.png`, green screen removed): dark blue = predators (both planets), blue-white = peaceful animals on Verdant, autumn = peaceful animals on Ember. Each animal is built from the sheet's head, body, four legs and tail. Pickaxe, axe and spear inventory icons are `src/img/pickaxe.png`, `axe.png`, `spear.png`.
+
+## Death messages
+When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).

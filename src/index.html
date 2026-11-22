@@ -23,6 +23,7 @@ canvas{display:block;position:fixed;inset:0}
 body.inmenu #hot,body.inmenu #hname{visibility:hidden}
 .slot.sel{border-color:#fff;box-shadow:0 0 12px #8fb0ff}
 #toast{left:50%;top:18%;transform:translateX(-50%);padding:8px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;opacity:0;transition:opacity .3s}
+#dmsg{position:fixed;left:12px;top:calc(max(12px,env(safe-area-inset-top)) + 150px);max-width:min(300px,70vw);padding:8px 12px;background:rgba(60,10,14,.82);border:1px solid #ff6b6b;border-radius:8px;font-weight:700;opacity:0;transition:opacity .5s;pointer-events:none;z-index:6}
 #flash{position:fixed;inset:0;background:red;opacity:0;pointer-events:none;transition:opacity .25s}
 #ov,#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,4,10,.72);z-index:5}
 #menu{display:none}
@@ -60,7 +61,7 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="loc"></div></div>
 <div id="cross" class="hud"></div>
 <div id="tgt" class="hud"><div id="tn"></div><div id="pb"><i></i></div></div>
-<div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div>
+<div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = jump off a planet into space (planets have gravity; space is zero-g)</p>
@@ -181,7 +182,7 @@ function stepAnimal(a,dt){
  const pl=a.pl;a.cd-=dt;a.block-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
  const tan=()=>toP.clone().addScaledVector(a.n,-toP.dot(a.n)).normalize();
  if(a.block>0){sp*=.7}
- else if(a.pred&&dist<55&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<5.4&&a.cd<=0){hurt(12);a.cd=.9}}
+ else if(a.pred&&dist<55&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<5.4&&a.cd<=0){hurt(12,'pred',a.name);a.cd=.9}}
  else if(!a.pred&&dist<14){a.t.copy(tan()).negate();sp*=1.8}
  else{a.turn-=dt;if(a.turn<=0){a.turn=rnd(2,6);a.tw=rnd(-1,1)*.8;if(Math.random()<.3)a.idle=rnd(1,3)}a.t.applyAxisAngle(a.n,a.tw*dt);a.idle-=dt;sp=a.idle>0?0:sp*.5}
  const on=a.n.clone(),ot=a.t.clone(),ob=a.base.clone();
@@ -416,8 +417,13 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 let active=false,ui=false,locked=false,drag=false;
 const keys={};
 function say(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,2200)}
-function hurt(x){P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
-function die(){say('You died — respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function hurt(x,why,by){P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
+const DEATHS={
+ pred:['You tried to help a {n}. It helped itself to you.','You tried to pet a {n}. It had other plans.','Plot twist: you were the snack. 🍖','The {n} says thanks for the meal.'],
+ hunger:['You skipped lunch. Forever. 🍎','Food was RIGHT there. You just… didn’t.','Your stomach filed a complaint. Fatal.','Died of hunger. Apples exist, you know.'],
+ other:['You died. Embarrassing.','Oops. That was fatal.']};
+function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
@@ -621,7 +627,7 @@ function loop(){
   if(P.mode==='space')planets.forEach(d=>{if(cam.position.distanceTo(d.c)<d.R+150)loc='Near '+d.name});
   if(cam.position.length()>900){cam.position.setLength(900);say('Edge of the world — nothing beyond')}
   $('loc').innerHTML='📍 '+loc+'<br>'+clockStr()+(isNight?' · predators roam':'');
-  P.hg=Math.max(0,P.hg-.5*dt);if(P.hg<=0)hurt(3*dt);else if(P.hg>60)P.hp=Math.min(100,P.hp+1*dt);
+  P.hg=Math.max(0,P.hg-.5*dt);if(P.hg<=0)hurt(3*dt,'hunger');else if(P.hg>60)P.hp=Math.min(100,P.hp+1*dt);
   spawnTick(dt);planets.forEach(d=>d.animals.forEach(a=>stepAnimal(a,dt)));
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
