@@ -444,7 +444,7 @@ function spinPlanet(d,ang,full){
   g.origin.sub(c).applyQuaternion(q).add(c);g.q.premultiply(q).normalize();g.iq.copy(g.q).conjugate();g.up.set(0,1,0).applyQuaternion(g.q)}
  for(const o of blocks.values()){if(o.pos.distanceTo(c)>=d.RA)continue;
   o.pos.sub(c).applyQuaternion(q).add(c);o.root.position.copy(o.pos);o.root.quaternion.copy(o.s.q)}
- if(ATM.d===d){ // you are inside this atmosphere: it carries you along
+ if(ATM.d===d&&P.mode==='ground'){ // standing on this planet (or on blocks built on it): you turn with it. In free flight, even inside the atmosphere, nothing drags you - you only see the planet turn below you
   cam.position.sub(c).applyQuaternion(q).add(c);P.hd.applyQuaternion(q);P.up.applyQuaternion(q);P.vu.applyQuaternion(q)}
 }
 function spinWorld(dt){for(const d of planets){const a=d.spin*dt;d.ang+=a;spinPlanet(d,a,true)}}
