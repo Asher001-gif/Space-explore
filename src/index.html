@@ -133,14 +133,18 @@ function skinBox(g,w,h,d,mat,x,y,z,R){const geo=new T.BoxGeometry(w,h,d),uv=geo.
  const m=new T.Mesh(geo,mat);m.position.set(x,y,z);g.add(m);return m}
 function skinModel(k,s){const S=SKIN[k],g=new T.Group(),m=skinMat(k),H=S.head,B=S.body,T0=S.tail;
  // legs: left-front, right-front, left-back, right-back (creature faces +z, its left is +x)
- [[.55,.8],[-.55,.8],[.55,-.8],[-.55,-.8]].forEach(([x,z],i)=>{const L=S.legs[i];
-  skinBox(g,.5*s,.9*s,.5*s,m,x*s,.45*s,z*s,[SR(L,.75,.28,.97,.98),SR(L,.03,.28,.26,.98),SR(L,.35,.02,.65,.27),SR(L,.35,.9,.65,.98),SR(L,.35,.28,.65,.98),SR(L,.35,.28,.65,.98)])});
+ const legs=[];
+ [[.55,.8],[-.55,.8],[.55,-.8],[-.55,-.8]].forEach(([x,z],i)=>{const L=S.legs[i],hip=new T.Group();hip.position.set(x*s,.9*s,z*s);g.add(hip);legs.push(hip); // each leg hangs from a hip joint so it can swing
+  skinBox(hip,.5*s,.9*s,.5*s,m,0,-.45*s,0,[SR(L,.75,.28,.97,.98),SR(L,.03,.28,.26,.98),SR(L,.35,.02,.65,.27),SR(L,.35,.9,.65,.98),SR(L,.35,.28,.65,.98),SR(L,.35,.28,.65,.98)])});
  // body: chest pattern on the sides, top/underbody sheets on top/bottom
  skinBox(g,1.5*s,1*s,2.2*s,m,0,1.4*s,0,[SR(B,.17,.30,.80,.88),SR(B,.17,.30,.80,.88),SR(S.top,.45,.03,.60,.97),SR(S.under,.38,.08,.62,.92),SR(B,.305,0,.546,.30),SR(B,.305,0,.546,.30)]);
  // head (front = face with eyes at +z)
- skinBox(g,1.2*s,.9*s,1*s,m,0,1.75*s,1.6*s,[SR(H,.69,.353,1,.69),SR(H,0,.353,.31,.69),SR(H,.362,0,.629,.353),SR(H,.362,.69,.629,1),SR(H,.31,.353,.69,.69),SR(S.back,.27,.18,.73,.83)]);
+ const head=new T.Group();head.position.set(0,1.75*s,1.15*s);g.add(head); // neck joint: the head can turn to look around
+ skinBox(head,1.2*s,.9*s,1*s,m,0,0,.45*s,[SR(H,.69,.353,1,.69),SR(H,0,.353,.31,.69),SR(H,.362,0,.629,.353),SR(H,.362,.69,.629,1),SR(H,.31,.353,.69,.69),SR(S.back,.27,.18,.73,.83)]);
  // tail (strip runs base -> tip toward -z)
- skinBox(g,.4*s,.4*s,1.8*s,m,0,1.55*s,-2*s,[SR(T0,0,0,1,1),SR(T0,0,0,1,1,{fu:1}),SR(T0,0,0,1,1,{rot:1}),SR(T0,0,0,1,1,{rot:1,fu:1}),SR(T0,0,0,.05,1),SR(T0,.95,0,1,1)]);
+ const tail=new T.Group();tail.position.set(0,1.55*s,-1.1*s);g.add(tail);
+ skinBox(tail,.4*s,.4*s,1.8*s,m,0,0,-.9*s,[SR(T0,0,0,1,1),SR(T0,0,0,1,1,{fu:1}),SR(T0,0,0,1,1,{rot:1}),SR(T0,0,0,1,1,{rot:1,fu:1}),SR(T0,0,0,.05,1),SR(T0,.95,0,1,1)]);
+ g.userData.legs=legs;g.userData.head=head;g.userData.tail=tail;
  return g}
 function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
@@ -230,6 +234,19 @@ function makeAnimal(d,pred,nightPred){
  a.root=g;setBase(a);orient(a);animalCS(a);reg(g,a);d.animals.push(a);
 }
 const KB_TIME=.25,KB_SPEED=10; // knock-back: slides ~2.5 units over .25 s with a tiny hop
+/* walking: diagonal legs swing together (front-left + back-right, then front-right + back-left); standing: legs settle, the head looks here and there */
+function animateAnimal(a,dt,sp,looking){
+ const u=a.root.userData;if(!u.legs)return;
+ const mv=sp>.05?1:0;a.wk=(a.wk||0)+(mv-(a.wk||0))*Math.min(1,dt*8);
+ a.ph=(a.ph||0)+Math.min(16,sp/(1.5*a.s)*6.283)*dt;
+ const amp=(.3+.4*Math.min(1,sp/9))*a.wk,sw=Math.sin(a.ph);
+ u.legs.forEach((l,i)=>{l.rotation.x=(i===0||i===3?sw:-sw)*amp});
+ a.lt=(a.lt||0)-dt;if(a.lt<=0){a.lt=rnd(.7,1.7);a.lk=rnd(-1,1)*1.1;a.lp=rnd(-.3,.25)}
+ const k=Math.min(1,dt*5),h=u.head;
+ h.rotation.y+=((looking?a.lk:Math.sin(a.ph*.5)*.08*a.wk)-h.rotation.y)*k;
+ h.rotation.x+=((looking?a.lp:Math.abs(sw)*.07*a.wk)-h.rotation.x)*k;
+ u.tail.rotation.y=Math.sin((a.ph||0)*.5+performance.now()/400)*(.15+.25*a.wk);
+}
 function stepAnimal(a,dt){
  if(!a.dying&&a.root.scale.x>1.001)a.root.scale.setScalar(Math.max(1,a.root.scale.x-dt*1.2)); // hit squash fades
  const pl=a.pl;a.cd-=dt;a.block-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
@@ -237,7 +254,7 @@ function stepAnimal(a,dt){
  if(a.block>0){sp*=.7}
  else if(a.pred&&dist<55&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<5.4&&a.cd<=0){hurt(12,'pred',a.name);a.cd=.9}}
  else if(!a.pred&&dist<14){a.t.copy(tan()).negate();sp*=1.8}
- else{a.turn-=dt;if(a.turn<=0){a.turn=rnd(2,6);a.tw=rnd(-1,1)*.8;if(Math.random()<.3)a.idle=rnd(1,3)}a.t.applyAxisAngle(a.n,a.tw*dt);a.idle-=dt;sp=a.idle>0?0:sp*.5}
+ else{a.turn-=dt;if(a.turn<=0){a.turn=rnd(2,6);a.tw=rnd(-1,1)*.8;if(Math.random()<.45)a.idle=rnd(2,4.5)}a.t.applyAxisAngle(a.n,a.tw*dt);a.idle-=dt;sp=a.idle>0?0:sp*.5}
  const on=a.n.clone(),ot=a.t.clone(),ob=a.base.clone();
  const q=new T.Quaternion().setFromAxisAngle(_r.crossVectors(a.n,a.t).normalize(),sp*dt/pl.R);
  a.n.applyQuaternion(q);a.t.applyQuaternion(q);a.t.addScaledVector(a.n,-a.t.dot(a.n)).normalize();
@@ -255,6 +272,7 @@ function stepAnimal(a,dt){
   if(animalHit(a)){a.n.copy(kn);a.t.copy(kt);a.base.copy(kbs);animalCS(a);a.kb=0} // something in the way: stop sliding
  }
  orient(a);
+ animateAnimal(a,dt,sp,!(a.block>0)&&a.idle>0&&sp===0&&!(a.pred&&dist<55&&P.alive)&&!(!a.pred&&dist<14));
  if(a.hop>0){a.hop=Math.max(0,a.hop-dt);a.root.position.addScaledVector(a.n,Math.sin(a.hop/KB_TIME*Math.PI)*.7*a.s)} // tiny hop
 }
 /* what an animal's body is touching: 1 = the player, 2 = block / asteroid / tree / another animal, 0 = free */
