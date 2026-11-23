@@ -77,13 +77,15 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <script>
 const T=THREE,$=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a),UP=new T.Vector3(0,1,0);
 const scene=new T.Scene();scene.background=new T.Color(0x03040a);scene.fog=new T.FogExp2(0x03040a,0);
-const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,20000);cam.rotation.order='YXZ';
+const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,60000);cam.rotation.order='YXZ';
 const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
 const HL=new T.HemisphereLight(0x9fb4ff,0x3a2f3f,.9);scene.add(HL);
-const SUN=new T.Vector3(7500,2000,1000); // the sun stands still; the planets spin under it (see spinPlanet)
+/* the sun stands still and is HUGE and far away: radius 480,000 (1000x the old one), centre 4.8 million units out. The planets spin under it (see spinPlanet).
+   Fly into its radiation zone (closer than 1.12 radii from its centre) and you die instantly. */
+const SUN_R=480000,SUN_DIST=4.8e6,SUN=new T.Vector3(7500,2000,1000).normalize().multiplyScalar(SUN_DIST),SUNMESH=[],SUN_DRAW=40000;
 const dl=new T.DirectionalLight(0xfff1d0,1.2);dl.position.copy(SUN);scene.add(dl);
-const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,1),mt);m.position.copy(SUN);scene.add(m)});
+const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,3),mt);m.position.copy(SUN);SUNMESH.push(m);scene.add(m)});
 {const p=[];for(let i=0;i<1500;i++){const v=new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(3800);p.push(v.x,v.y,v.z)}
 const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));var STARS=new T.Points(g,new T.PointsMaterial({color:0xffffff,size:3,sizeAttenuation:false,transparent:true,fog:false,depthWrite:false}));scene.add(STARS)}
 /* sky dome: follows the camera; plain space black until you are inside an atmosphere, then a sky gradient (zenith -> horizon) that is always 'up' = away from the planet */
@@ -424,7 +426,7 @@ function cubeBusy(p){
   for(const a of d.animals)for(const c of a.cs)if(sbDist2(c.p,p)<c.r*c.r)return true}
  return false}
 /* ---------- day/night clock + animal spawn/despawn ---------- */
-let worldTime=0,isNight=false,spawnT=0,dayA=1;
+let worldTime=0,isNight=false,spawnT=0,dayA=1,hotW=false;
 /* local day/night: how high the sun stands above YOUR horizon (planet 'up' at your position vs the direction to the sun) */
 const YAX=new T.Vector3(0,1,0),_lu=new T.Vector3(),_ls=new T.Vector3();
 const sunElev=(pos,d)=>_lu.copy(pos).sub(d.c).normalize().dot(_ls.copy(SUN).sub(pos).normalize()); // sin(elevation): 1 = noon, 0 = horizon, <0 = night
@@ -434,6 +436,9 @@ const clockStr=()=>{if(!ATM.d)return '🌌 Open space';return dayA>.7?'☀ Day':
    inside its atmosphere, and you (when you are in its atmosphere). full=false only turns the natural things (used when a save is loaded,
    because saved blocks are already stored in the turned frame). */
 const _sq=new T.Quaternion(),_sm4=new T.Matrix4();
+/* the sun is far beyond the camera's draw distance, so it is drawn on the same line of sight at SUN_DRAW units, shrunk by the same factor: same size in the sky, correct hiding behind planets */
+const _sv2=new T.Vector3();
+function placeSun(){const v=_sv2.copy(SUN).sub(cam.position),D=v.length(),k=Math.min(D,SUN_DRAW)/D;SUNMESH.forEach(m=>{m.position.copy(cam.position).addScaledVector(v,k);m.scale.setScalar(1000*k)})}
 function spinPlanet(d,ang,full){
  const q=_sq.setFromAxisAngle(d.axis,ang),c=d.c;
  d.mesh.quaternion.premultiply(q);d.rq.premultiply(q).normalize();d.cloudU.uRot.value.setFromMatrix4(_sm4.makeRotationFromQuaternion(d.rq));
@@ -547,6 +552,7 @@ function hurt(x,why,by){P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;s
 const DEATHS={
  pred:['You tried to help a {n}. It helped itself to you.','You tried to pet a {n}. It had other plans.','Plot twist: you were the snack. 🍖','The {n} says thanks for the meal.'],
  hunger:['You skipped lunch. Forever. 🍎','Food was RIGHT there. You just… didn’t.','Your stomach filed a complaint. Fatal.','Died of hunger. Apples exist, you know.'],
+ sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
 function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
@@ -825,7 +831,8 @@ function loop(){
   if(P.mode==='space'){planets.forEach(d=>{if(cam.position.distanceTo(d.c)<d.RA+300)loc='Near '+d.name});
    if(ATM.d){const A=ATM,d=A.d;loc=P.esc?'Launching from '+d.name:A.alt>d.ct?'Entering '+d.name+"'s atmosphere":'Inside the clouds of '+d.name}}
   STARS.position.copy(cam.position);SKY.position.copy(cam.position);
-  if(cam.position.length()>5200){cam.position.setLength(5200);say('Edge of the world — nothing beyond')}
+  placeSun();{const ds=cam.position.distanceTo(SUN);if(ds<SUN_R*1.12&&P.alive)hurt(1e6,'sun');if(ds<SUN_R*2){if(!hotW){hotW=true;say('☢ Deadly radiation ahead — turn back!')}}else hotW=false}
+  const EDGE=SUN_DIST+SUN_R*1.6;if(cam.position.length()>EDGE){cam.position.setLength(EDGE);say('Edge of the world — nothing beyond')}
   $('loc').innerHTML='📍 '+loc+'<br>'+clockStr()+(isNight?' · predators roam':'');
   P.hg=Math.max(0,P.hg-.5*dt);if(P.hg<=0)hurt(3*dt,'hunger');else if(P.hg>60)P.hp=Math.min(100,P.hp+1*dt);
   spawnTick(dt);planets.forEach(d=>d.animals.forEach(a=>stepAnimal(a,dt)));
