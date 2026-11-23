@@ -44,4 +44,12 @@ Creature HP: peaceful 8, predators 14. Damage per hit: bare hand 1, pickaxe or a
 Build with anti-gravity blocks and you can walk inside: the floor you stand on is "sticky", so doorways, corridors and rooms no longer flip your gravity onto the doorframe, walls or ceiling. Walk into a wall to climb it. Interior tips: make rooms at least 2 blocks high (3 is comfortable) and doors 1 block wide x 2 blocks high; you can enter walking from a floor outside the door.
 
 ## Planet size
-Planets are twice as big (Verdant radius 220, Ember 190): flatter ground for building and more room for houses. Blocks from old saves that would end up inside a planet are returned to your inventory.
+Planets are 5x bigger than before (Verdant radius 1100, Ember 950) and spaced further apart, with more trees and animals to fill them. Flying between them takes about half a minute; the edge of the world is 5200 units from the centre.
+
+## Build grids (level houses on a round planet)
+Blocks no longer snap to one world-wide grid. Each structure is its own square grid whose "up" follows the ground where you started it and whose "forward" is the way you were facing, so floors are level and walls are straight even though the planet is round.
+- Place a block against another block: it joins that block's grid.
+- Aim at the ground within 16 units of a grid whose up is within ~10 degrees of the ground there: the block joins that grid (and stair-steps down to the ground as the planet curves away).
+- Anywhere else: a new grid starts, and the first block sits flat on the ground.
+- Collision, anti-gravity walking and placement all treat blocks as turned cubes. Saves store each grid's origin and rotation (save format lv 3).
+- Old saves (before grids): the planets moved and grew, so their blocks are returned to your inventory.
