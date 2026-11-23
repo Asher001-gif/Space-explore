@@ -709,7 +709,7 @@ addEventListener('mousedown',e=>{if(e.button===0&&active&&!ui)actDown()});
 addEventListener('mouseup',e=>{if(e.button===0)actUp()});
 /* jump key (Space / 8): TAP = hop on the planet, HOLD = launch up through the clouds into free space.
    On anti-gravity blocks outside any atmosphere it still jumps off at once. */
-const JUMPK=['Space','Digit8','Numpad8'],HOLD_T=.6,HOPV=13,HOPG=34,ESC_V=75;let jh=null;
+const JUMPK=['Space','Digit8','Numpad8'],HOLD_T=.6,HOPV=15,HOPG=34,ESC_V=75;let jh=null;
 const inAtmo=()=>{for(const d of planets)if(cam.position.distanceTo(d.c)-d.R<d.ah)return d;return null};
 function jumpDown(k){if(P.mode!=='ground'||jh)return;if(P.pl.ag&&!inAtmo()){leave();return}jh={t:0,done:false,k}}
 function jumpUp(){const j=jh;jh=null;$('jb').style.display='none';if(!j||j.done||!active||ui||P.mode!=='ground')return;if(P.pl.ag)say('Hold Space / 8 to launch into space');else hop()}
@@ -754,7 +754,7 @@ function enableTouch(){
  fitScreen();
 }
 if(COARSE)enableTouch();else addEventListener('touchstart',enableTouch,{once:true,passive:true}); // a touch on a laptop-sized device switches the controls on too
-function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>0)return;P.hv=HOPV;P.hh=.001}
+function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>(P.sup||0)+.05)return;P.hv=HOPV;P.hh+=.001}
 let aimObj=null,hitCD=0;
 function actDown(){ // 5 / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
  if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
@@ -859,10 +859,24 @@ let _dt=.016;
 function aim(up){
  if(P.vsm){P.vu.lerp(up,1-Math.exp(-3.5*_dt));if(P.vu.lengthSq()<1e-4)P.vu.copy(up);P.vu.normalize();if(P.vu.dot(up)>.9999){P.vu.copy(up);P.vsm=false}cam.up.copy(P.vu)}else cam.up.copy(up);
  const l=_t1.copy(P.hd).multiplyScalar(Math.cos(P.pitch)).addScaledVector(up,Math.sin(P.pitch));cam.lookAt(cam.position.x+l.x,cam.position.y+l.y,cam.position.z+l.z)}
+/* what is under / over you: the top of the highest block you are above (that you can reach: at most .45 above your feet) = floor height above the planet surface,
+   and the underside of the lowest block above your head = ceiling. Blocks beside you are walls (colRes). */
+function supportAt(d,pos,up,hh){
+ let f=0,c=1e9;const sr=surfR(d,up);
+ for(const o of blocks.values()){const b=o.pos;if(b.distanceToSquared(pos)>81)continue;
+  if(o.s.up.dot(up)<.8)continue;
+  _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>1.5||Math.abs(_L.z)>1.5)continue; // you are over / under this block
+  const ht=_t2.copy(b).addScaledVector(o.s.up,1).sub(d.c).dot(up)-sr,hb=ht-2;
+  if(ht<=hh+.45){if(ht>f)f=ht}else if(hb>=hh-.05&&hb<c)c=hb}
+ return[f,c]}
 function groundStep(dt){
  const d=P.pl;if(d.ag){agGround(dt);return}
- if(P.fall){const vd=Math.min(55,3+.55*P.hh);P.hv+=(-vd-P.hv)*(1-Math.exp(-1.8*dt));P.hh+=P.hv*dt;if(P.hh<=0){P.hh=0;P.hv=0;P.fall=false;say('Touched down on '+d.name)}}
- else if(P.hh>0){P.hv-=HOPG*dt;P.hh+=P.hv*dt;if(P.hh<=0){P.hh=0;P.hv=0}}
+ const[sf,sc]=supportAt(d,cam.position,P.up,P.hh);P.sup=sf; // P.hh = height of your feet above the planet surface; sf = height of the floor under you (0 = bare ground, 2 = on top of a block)
+ if(P.fall){const vd=Math.min(55,3+.55*P.hh);P.hv+=(-vd-P.hv)*(1-Math.exp(-1.8*dt));P.hh+=P.hv*dt;if(P.hh<=sf){P.hh=sf;P.hv=0;P.fall=false;say('Touched down on '+d.name)}}
+ else if(P.hh>sf+1e-3||P.hv>0){P.hv-=HOPG*dt;P.hh+=P.hv*dt;
+  if(P.hv>0&&P.hh+EYE+.3>sc){P.hv=0;P.hh=Math.max(sf,sc-EYE-.3)} // bumped your head on a block above
+  if(P.hh<=sf&&P.hv<=0){P.hh=sf;P.hv=0}} // landed (on the ground or on top of a block)
+ else if(P.hh<sf)P.hh=Math.min(sf,P.hh+Math.max(6,(sf-P.hh)*10)*dt); // a block was put under you: lift smoothly
  const up=P.up.copy(cam.position).sub(d.c).normalize();
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(d.spd||11);
