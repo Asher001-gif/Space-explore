@@ -69,7 +69,7 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn at night (19:00–05:00) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -81,9 +81,10 @@ const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,20000);cam.rotati
 const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
 const HL=new T.HemisphereLight(0x9fb4ff,0x3a2f3f,.9);scene.add(HL);
-const SUN=new T.Vector3(7500,2000,1000);
+/* The sun circles the system (one lap = SUN_PERIOD seconds), which is the same as every planet slowly spinning under it. Set SUN_SPIN to 0 for planets that stand still: then day/night depends only on where you stand. */
+const SUN0=new T.Vector3(7500,2000,1000),SUN=SUN0.clone(),SUN_PERIOD=240,SUN_SPIN=2*Math.PI/SUN_PERIOD,SUNMESH=[];
 const dl=new T.DirectionalLight(0xfff1d0,1.2);dl.position.copy(SUN);scene.add(dl);
-const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,1),mt);m.position.copy(SUN);scene.add(m)});
+const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,1),mt);m.position.copy(SUN);SUNMESH.push(m);scene.add(m)});
 {const p=[];for(let i=0;i<1500;i++){const v=new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(3800);p.push(v.x,v.y,v.z)}
 const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));var STARS=new T.Points(g,new T.PointsMaterial({color:0xffffff,size:3,sizeAttenuation:false,transparent:true,fog:false,depthWrite:false}));scene.add(STARS)}
 /* sky dome: follows the camera; plain space black until you are inside an atmosphere, then a sky gradient (zenith -> horizon) that is always 'up' = away from the planet */
@@ -209,15 +210,18 @@ function treeTick(dt){
   const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
  for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));treeCS(o,Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
 function orient(a){_r.crossVectors(a.n,a.t).normalize();_M.makeBasis(_r,a.n,a.t);a.root.quaternion.setFromRotationMatrix(_M);a.root.position.copy(a.base)}
-function spawnDir(d){let n;for(let i=0;i<40;i++){n=rndDir();
+function spawnDir(d,nightPred){let n;for(let i=0;i<40;i++){n=rndDir();
+ if(nightPred){const b=cam.position.clone().sub(d.c).normalize(),ax=rndDir();ax.addScaledVector(b,-ax.dot(b)).normalize();n=b.clone().applyAxisAngle(ax,rnd(45,220)/d.Rs); // somewhere 45-220 units from you...
+  if(dayOf(sunElev(n.clone().multiplyScalar(d.Rs).add(d.c),d))>.3)continue} // ...but only on the dark side
+
  if(n.clone().multiplyScalar(d.Rs).add(d.c).distanceTo(cam.position)<=35)continue;
  if(d.treeList.some(t=>t.n.dot(n)>Math.cos(3/d.Rs)))continue;
  if(d.animals.some(a=>a.n.dot(n)>Math.cos(4/d.Rs)))continue;
  if(gameReady&&hitTest(n.clone().multiplyScalar(surfR(d,n)+1.2).add(d.c),2))continue;
  return n}return n}
-function makeAnimal(d,pred){
+function makeAnimal(d,pred,nightPred){
  const s=pred?1.5:1,g=skinModel(pred?'pred':(d.name==='Verdant'?'calm':'fall'),s);
- const n=spawnDir(d),v=rndDir(),t=v.addScaledVector(n,-v.dot(n)).normalize();
+ const n=spawnDir(d,nightPred),v=rndDir(),t=v.addScaledVector(n,-v.dot(n)).normalize();
  const a={kind:'animal',pred,pl:d,n,t,s,name:pred?d.prn:d.pn,time:pred?1.4:.9,speed:pred?8:5,hp:pred?14:8,mhp:pred?14:8,cd:0,turn:0,tw:0,idle:0,base:new T.Vector3(),cs:AS.map(()=>({p:new T.Vector3(),r:1}))};
  a.root=g;setBase(a);orient(a);animalCS(a);reg(g,a);d.animals.push(a);
 }
@@ -418,20 +422,35 @@ function cubeBusy(p){
   for(const a of d.animals)for(const c of a.cs)if(sbDist2(c.p,p)<c.r*c.r)return true}
  return false}
 /* ---------- day/night clock + animal spawn/despawn ---------- */
-const DAY_LEN=240;let worldTime=0,isNight=false,spawnT=0,dayA=1;
-const hourNow=()=>(8+worldTime/DAY_LEN*24)%24;
-const clockStr=()=>{const h=hourNow();return (isNight?'🌙 Night':'☀ Day')+' '+String(Math.floor(h)).padStart(2,'0')+':'+String(Math.floor(h%1*60)).padStart(2,'0')};
+let worldTime=0,isNight=false,spawnT=0,dayA=1;
+/* local day/night: how high the sun stands above YOUR horizon (planet 'up' at your position vs the direction to the sun) */
+const YAX=new T.Vector3(0,1,0),_lu=new T.Vector3(),_ls=new T.Vector3();
+const sunElev=(pos,d)=>_lu.copy(pos).sub(d.c).normalize().dot(_ls.copy(SUN).sub(pos).normalize()); // sin(elevation): 1 = noon, 0 = horizon, <0 = night
+const dayOf=e=>sm(-.3,.5,e); // 0 = full night .. 1 = full day (dusk/dawn in between)
+const clockStr=()=>{if(!ATM.d)return '🌌 Open space';return dayA>.7?'☀ Day':dayA<.25?'🌙 Night':dayA>.45?'🌇 Late day':'🌅 Twilight'};
+function updateSun(){
+ SUN.copy(SUN0).applyAxisAngle(YAX,SUN_SPIN*worldTime);dl.position.copy(SUN);SUNMESH.forEach(m=>m.position.copy(SUN));
+ for(const d of planets){const sd=_ls.copy(SUN).sub(d.c).normalize();d.cloudU.uSun.value.copy(sd);d.atmoMesh.material.uniforms.uS.value.copy(sd)}}
 function despawn(a){unreg(a);const l=a.pl.animals,i=l.indexOf(a);if(i>=0)l.splice(i,1)}
+function retire(a){if(a.root.position.distanceTo(cam.position)>45)despawn(a);else{a.dying=(a.dying||0)+2;a.root.scale.setScalar(Math.max(.05,1-a.dying/6));if(a.dying>=6)despawn(a)}}
 function spawnTick(dt){
- worldTime+=dt;const h=hourNow(),night=h>=19||h<5;
- if(night!==isNight){isNight=night;say(night?'🌙 Night falls — predators are spawning':'☀ Dawn — predators fade away')}
- const a=.5+.5*Math.cos(2*Math.PI*(h-12)/24);HL.intensity=.35+.55*a;dl.intensity=.3+.9*a;dayA=a;
+ worldTime+=dt;updateSun();
+ const here=ATM.d; // the planet whose sky you are in (null in open space)
+ let tgt=1;
+ if(here){const e=P.mode==='ground'?_lu.copy(P.up).dot(_ls.copy(SUN).sub(cam.position).normalize()):sunElev(cam.position,here);tgt=dayOf(e);HL.position.copy(P.mode==='ground'?P.up:_lu.copy(cam.position).sub(here.c).normalize())}
+ else HL.position.set(0,1,0);
+ dayA+=(tgt-dayA)*Math.min(1,2.5*dt);
+ const night=!!here&&(isNight?dayA<.4:dayA<.25);
+ if(night!==isNight){isNight=night;say(night?'🌙 Night falls here — predators are spawning':'☀ The sun is back — predators fade away')}
+ HL.intensity=.35+.55*dayA;dl.intensity=.3+.9*dayA;
  spawnT-=dt;if(spawnT>0)return;spawnT=2;
  for(const d of planets){
-  const cap={peace:night?Math.round(d.peace*.3):d.peace,pred:night?d.pred:0};
+  const nh=night&&d===here; // predators only come out where it is night around you
+  const cap={peace:nh?Math.round(d.peace*.3):d.peace,pred:nh?d.pred:0};
   for(const pred of[false,true]){
    const list=d.animals.filter(x=>x.pred===pred),c=pred?cap.pred:cap.peace;
-   if(list.length<c)makeAnimal(d,pred);
+   if(pred&&nh){const bad=list.find(x=>dayOf(sunElev(x.root.position,d))>.55);if(bad)retire(bad)} // a predator that wandered into daylight burns off
+   if(list.length<c)makeAnimal(d,pred,nh);
    else if(list.length>c){
     const far=list.find(x=>x.root.position.distanceTo(cam.position)>45);
     if(far)despawn(far);
@@ -659,7 +678,7 @@ function finish(o){
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred||Math.random()<.25){inv.anti++;m+=', +1 Anti-Gravity Core ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
 /* ---------- atmosphere: clouds -> sky colour, no stars below the clouds, gravity pulls you down ---------- */
-const ATM={d:null,alt:0,skyT:0,wo:0},SPACE=new T.Color(0x03040a),HL0=new T.Color(0x9fb4ff),_ca=new T.Color(),_cb=new T.Color(),_cc=new T.Color(),_cd=new T.Color(),DARKC=new T.Color(0x1a2030);
+const ATM={d:null,alt:0,skyT:0,wo:0},SPACE=new T.Color(0x03040a),HL0=new T.Color(0x9fb4ff),_ca=new T.Color(),_cb=new T.Color(),_cc=new T.Color(),_cd=new T.Color(),DARKC=new T.Color(0x1a2030),DUSK=new T.Color(0xff7a3c);
 const cl01=x=>x<0?0:x>1?1:x,sm=(a,b,x)=>{const t=cl01((x-a)/(b-a));return t*t*(3-2*t)};
 function atmoUpdate(){
  let best=null,ba=1e9;
@@ -672,6 +691,7 @@ function atmoUpdate(){
   _ca.setHex(d.skyN[0]).lerp(_cc.setHex(d.sky[0]),day); // zenith
   _cb.setHex(d.skyN[1]).lerp(_cc.setHex(d.sky[1]),day); // horizon
   _cd.copy(DARKC).lerp(_cc.setHex(d.cloud),day);        // cloud / whiteout colour
+  _cb.lerp(DUSK,sm(.1,.35,dayA)*sm(.75,.4,dayA)*.55); // sunrise / sunset glow on the horizon
   _ca.lerp(SPACE,1-skyT);_cb.lerp(SPACE,1-skyT);_ca.lerp(_cd,wo);_cb.lerp(_cd,wo);
   SKY.material.uniforms.top.value.copy(_ca);SKY.material.uniforms.hor.value.copy(_cb);scene.fog.color.copy(_cb);
   scene.fog.density=.0003+.0007*skyT+.0155*wo;
