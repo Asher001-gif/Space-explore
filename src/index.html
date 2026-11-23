@@ -81,10 +81,9 @@ const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,20000);cam.rotati
 const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
 const HL=new T.HemisphereLight(0x9fb4ff,0x3a2f3f,.9);scene.add(HL);
-/* The sun circles the system (one lap = SUN_PERIOD seconds), which is the same as every planet slowly spinning under it. Set SUN_SPIN to 0 for planets that stand still: then day/night depends only on where you stand. */
-const SUN0=new T.Vector3(7500,2000,1000),SUN=SUN0.clone(),SUN_PERIOD=240,SUN_SPIN=2*Math.PI/SUN_PERIOD,SUNMESH=[];
+const SUN=new T.Vector3(7500,2000,1000); // the sun stands still; the planets spin under it (see spinPlanet)
 const dl=new T.DirectionalLight(0xfff1d0,1.2);dl.position.copy(SUN);scene.add(dl);
-const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,1),mt);m.position.copy(SUN);SUNMESH.push(m);scene.add(m)});
+const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,1),mt);m.position.copy(SUN);scene.add(m)});
 {const p=[];for(let i=0;i<1500;i++){const v=new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(3800);p.push(v.x,v.y,v.z)}
 const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));var STARS=new T.Points(g,new T.PointsMaterial({color:0xffffff,size:3,sizeAttenuation:false,transparent:true,fog:false,depthWrite:false}));scene.add(STARS)}
 /* sky dome: follows the camera; plain space black until you are inside an atmosphere, then a sky gradient (zenith -> horizon) that is always 'up' = away from the planet */
@@ -149,7 +148,10 @@ const PDEF=[
 /* atmospheres: each planet has a thick atmosphere (height ah) with a cloud layer inside it (cb..ct above the ground).
    Two planets must never share an atmosphere, so ah is clamped to leave a clear gap between the atmosphere shells. */
 for(let i=0;i<PDEF.length;i++)for(let j=i+1;j<PDEF.length;j++){const a=PDEF[i],b=PDEF[j],gap=a.c.distanceTo(b.c)-a.R-b.R,mx=Math.max(40,(gap-150)/2);a.ah=Math.min(a.ah,mx);b.ah=Math.min(b.ah,mx)}
-PDEF.forEach(d=>{d.ct=d.ah*.74;d.cb=d.ah*.36;d.RA=d.R+d.ah});
+PDEF.forEach(d=>{d.ct=d.ah*.74;d.cb=d.ah*.36;d.RA=d.R+d.ah;
+ d.axis=(d.name==='Verdant'?new T.Vector3(0,1,0):new T.Vector3(.25,1,-.15)).normalize(); // spin axis
+ d.spin=d.name==='Verdant'?2*Math.PI/240:-2*Math.PI/300; // rad/s: one day = 240 s (Verdant) / 300 s (Ember, turns the other way)
+ d.ang=0;d.rq=new T.Quaternion()});
 /* cloud layer: thousands of soft camera-facing puffs between d.cb and d.ct above the ground (one instanced draw per planet).
    From far away they read as thick cloud cover; flying through them the puffs fade around you and the fog turns white. */
 function makeClouds(d){
@@ -161,9 +163,9 @@ function makeClouds(d){
  const g=new T.InstancedBufferGeometry();
  g.setAttribute('position',new T.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));g.setIndex([0,1,2,0,2,3]);
  g.setAttribute('off',new T.InstancedBufferAttribute(off.slice(0,n*3),3));g.setAttribute('prm',new T.InstancedBufferAttribute(prm.slice(0,n*4),4));g.instanceCount=n;
- const U={uCol:{value:new T.Color(d.cloud)},uSh:{value:new T.Color(d.cloudSh)},uSun:{value:SUN.clone().sub(d.c).normalize()},uC:{value:d.c.clone()},uDay:{value:1},uOp:{value:.55},uFd:{value:0}};
+ const U={uCol:{value:new T.Color(d.cloud)},uSh:{value:new T.Color(d.cloudSh)},uSun:{value:SUN.clone().sub(d.c).normalize()},uC:{value:d.c.clone()},uRot:{value:new T.Matrix3()},uDay:{value:1},uOp:{value:.55},uFd:{value:0}};
  const m=new T.Mesh(g,new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,uniforms:U,
-  vertexShader:'attribute vec3 off;attribute vec4 prm;uniform vec3 uC;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vU=position.xy;vec4 mv=viewMatrix*vec4(off,1.0);vD=length(mv.xyz);float s=prm.x,cs=cos(prm.y),sn=sin(prm.y);vec2 q=vec2(position.x*cs-position.y*sn,position.x*sn+position.y*cs)*s;vF=smoothstep(s*.12,s*.95,-mv.z);mv.xy+=q;vH=prm.w;vS=prm.z;vN=normalize(off-uC);gl_Position=projectionMatrix*mv;}',
+  vertexShader:'attribute vec3 off;attribute vec4 prm;uniform vec3 uC;uniform mat3 uRot;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vU=position.xy;vec3 wo=uC+uRot*(off-uC);vec4 mv=viewMatrix*vec4(wo,1.0);vD=length(mv.xyz);float s=prm.x,cs=cos(prm.y),sn=sin(prm.y);vec2 q=vec2(position.x*cs-position.y*sn,position.x*sn+position.y*cs)*s;vF=smoothstep(s*.12,s*.95,-mv.z);mv.xy+=q;vH=prm.w;vS=prm.z;vN=normalize(wo-uC);gl_Position=projectionMatrix*mv;}',
   fragmentShader:'uniform vec3 uCol;uniform vec3 uSh;uniform vec3 uSun;uniform float uDay;uniform float uOp;uniform float uFd;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vec2 c1=vec2(cos(vS*40.),sin(vS*23.))*.42;vec2 c2=vec2(cos(vS*31.+2.),sin(vS*47.+1.))*.46;float r0=length(vU),r1=length(vU-c1)/.7,r2=length(vU-c2)/.62;float a=max(exp(-3.4*r0*r0),max(exp(-3.4*r1*r1),exp(-3.4*r2*r2)));a=a*(1.-smoothstep(.8,1.,r0));if(a<.02)discard;float fg=1.-exp(-uFd*uFd*vD*vD);float lit=clamp(dot(vN,uSun)*.55+.55,0.,1.)*(.62+.38*vH);vec3 col=mix(uSh,uCol,lit)*(.2+.8*uDay);gl_FragColor=vec4(col,a*uOp*vF*(1.-fg));}'}));
  m.frustumCulled=false;m.raycast=()=>{};scene.add(m);d.cloudU=U}
 PDEF.forEach(d=>{
@@ -428,13 +430,29 @@ const YAX=new T.Vector3(0,1,0),_lu=new T.Vector3(),_ls=new T.Vector3();
 const sunElev=(pos,d)=>_lu.copy(pos).sub(d.c).normalize().dot(_ls.copy(SUN).sub(pos).normalize()); // sin(elevation): 1 = noon, 0 = horizon, <0 = night
 const dayOf=e=>sm(-.3,.5,e); // 0 = full night .. 1 = full day (dusk/dawn in between)
 const clockStr=()=>{if(!ATM.d)return '🌌 Open space';return dayA>.7?'☀ Day':dayA<.25?'🌙 Night':dayA>.45?'🌇 Late day':'🌅 Twilight'};
-function updateSun(){
- SUN.copy(SUN0).applyAxisAngle(YAX,SUN_SPIN*worldTime);dl.position.copy(SUN);SUNMESH.forEach(m=>m.position.copy(SUN));
- for(const d of planets){const sd=_ls.copy(SUN).sub(d.c).normalize();d.cloudU.uSun.value.copy(sd);d.atmoMesh.material.uniforms.uS.value.copy(sd)}}
+/* planets spin about their axis. Everything that sits on a planet is turned with it: terrain, clouds, trees, animals, build grids + blocks
+   inside its atmosphere, and you (when you are in its atmosphere). full=false only turns the natural things (used when a save is loaded,
+   because saved blocks are already stored in the turned frame). */
+const _sq=new T.Quaternion(),_sm4=new T.Matrix4();
+function spinPlanet(d,ang,full){
+ const q=_sq.setFromAxisAngle(d.axis,ang),c=d.c;
+ d.mesh.quaternion.premultiply(q);d.rq.premultiply(q).normalize();d.cloudU.uRot.value.setFromMatrix4(_sm4.makeRotationFromQuaternion(d.rq));
+ for(const o of d.treeList){o.n.applyQuaternion(q);o.base.sub(c).applyQuaternion(q).add(c);o.root.position.copy(o.base);o.root.quaternion.premultiply(q);treeCS(o,o.root.scale.x)}
+ for(const a of d.animals){a.n.applyQuaternion(q);a.t.applyQuaternion(q);setBase(a);orient(a);animalCS(a)}
+ if(!full)return;
+ for(const g of structs.values()){if(g.origin.distanceTo(c)>=d.RA)continue;
+  g.origin.sub(c).applyQuaternion(q).add(c);g.q.premultiply(q).normalize();g.iq.copy(g.q).conjugate();g.up.set(0,1,0).applyQuaternion(g.q)}
+ for(const o of blocks.values()){if(o.pos.distanceTo(c)>=d.RA)continue;
+  o.pos.sub(c).applyQuaternion(q).add(c);o.root.position.copy(o.pos);o.root.quaternion.copy(o.s.q)}
+ if(ATM.d===d){ // you are inside this atmosphere: it carries you along
+  cam.position.sub(c).applyQuaternion(q).add(c);P.hd.applyQuaternion(q);P.up.applyQuaternion(q);P.vu.applyQuaternion(q)}
+}
+function spinWorld(dt){for(const d of planets){const a=d.spin*dt;d.ang+=a;spinPlanet(d,a,true)}}
+function syncSpin(){for(const d of planets){const t=d.spin*worldTime,a=t-d.ang;if(a){spinPlanet(d,a,false);d.ang=t}}} // after a save is loaded
 function despawn(a){unreg(a);const l=a.pl.animals,i=l.indexOf(a);if(i>=0)l.splice(i,1)}
 function retire(a){if(a.root.position.distanceTo(cam.position)>45)despawn(a);else{a.dying=(a.dying||0)+2;a.root.scale.setScalar(Math.max(.05,1-a.dying/6));if(a.dying>=6)despawn(a)}}
 function spawnTick(dt){
- worldTime+=dt;updateSun();
+ worldTime+=dt;spinWorld(dt);
  const here=ATM.d; // the planet whose sky you are in (null in open space)
  let tgt=1;
  if(here){const e=P.mode==='ground'?_lu.copy(P.up).dot(_ls.copy(SUN).sub(cam.position).normalize()):sunElev(cam.position,here);tgt=dayOf(e);HL.position.copy(P.mode==='ground'?P.up:_lu.copy(cam.position).sub(here.c).normalize())}
@@ -514,7 +532,7 @@ function loadSave(){
   for(const k in refund)inv[k]=(inv[k]||0)+refund[k];
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
-  if(Number.isFinite(d.t))worldTime=Math.max(0,d.t);
+  if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin()}
   if(d.lv>=2&&Array.isArray(d.lay)&&(d.lay.length===36||d.lay.length===NS))d.lay.forEach((k,i)=>{const j=d.lay.length===36&&i>=27?i+(BP-27):i;layout[j]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
  }catch(e){/* corrupt save - ignore and start fresh */}
 }
