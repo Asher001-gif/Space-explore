@@ -6,6 +6,7 @@
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#03040a;color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;user-select:none}
 canvas{display:block;position:fixed;inset:0}
 .hud{position:fixed;pointer-events:none}
+#stats,#tgt,#toast{text-shadow:0 1px 3px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.6)}
 #stats{left:12px;top:max(12px,env(safe-area-inset-top));width:220px}
 .bar{height:12px;border:1px solid var(--line);background:var(--panel);margin:4px 0;border-radius:6px;overflow:hidden}
 .bar i{display:block;height:100%;width:100%}
@@ -13,6 +14,7 @@ canvas{display:block;position:fixed;inset:0}
 #loc{margin-top:6px;opacity:.85}
 #cross{left:50%;top:50%;width:18px;height:18px;margin:-9px;border:2px solid #fff;border-radius:50%;opacity:.6}
 #tgt{left:50%;top:calc(50% + 28px);transform:translateX(-50%);text-align:center;min-width:160px}
+#jb{left:50%;top:calc(50% + 66px);transform:translateX(-50%);width:150px;height:8px;border:1px solid var(--line);background:var(--panel);border-radius:4px;overflow:hidden;display:none}#jb i{display:block;height:100%;width:0;background:#9fd0ff}
 #pb{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px;overflow:hidden;display:none}#pb i{display:block;height:100%;width:0;background:var(--good)}
 #hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px}
 .slot{width:min(64px,9vw);height:min(64px,9vw);border:2px solid var(--line);background:var(--panel);border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center}
@@ -59,12 +61,12 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 .rec .cost{font-size:11px;margin-top:2px}.rec .cost .no{color:#ff7b7b}.rec button{margin:0 0 0 auto;font:700 12px "Courier New",monospace;border-radius:2px;background:#4aa02c;border:2px solid #14161c}.rec button:disabled{background:#3a4050;opacity:.5;cursor:default}
 </style></head><body>
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="loc"></div></div>
-<div id="cross" class="hud"></div>
+<div id="cross" class="hud"></div><div id="jb" class="hud"><i></i></div>
 <div id="tgt" class="hud"><div id="tn"></div><div id="pb"><i></i></div></div>
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
-<p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = jump off a planet into space (planets have gravity; space is zero-g)</p>
+<p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
 <p>⚠ Red animals are predators — they spawn at night (19:00–05:00) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
@@ -74,16 +76,22 @@ button{font:inherit;color:var(--fg);background:#2a3a7a;border:1px solid var(--li
 <script src="lib/three.min.js"></script>
 <script>
 const T=THREE,$=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a),UP=new T.Vector3(0,1,0);
-const scene=new T.Scene();scene.background=new T.Color(0x03040a);
+const scene=new T.Scene();scene.background=new T.Color(0x03040a);scene.fog=new T.FogExp2(0x03040a,0);
 const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,20000);cam.rotation.order='YXZ';
 const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
 const HL=new T.HemisphereLight(0x9fb4ff,0x3a2f3f,.9);scene.add(HL);
 const SUN=new T.Vector3(7500,2000,1000);
 const dl=new T.DirectionalLight(0xfff1d0,1.2);dl.position.copy(SUN);scene.add(dl);
-[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const m=new T.Mesh(new T.IcosahedronGeometry(r,1),new T.MeshBasicMaterial({color:c,transparent:o<1,opacity:o,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1}));m.position.copy(SUN);scene.add(m)});
+const SUNM=[];[[480,0xffe28a,1],[750,0xffe9a0,.2]].forEach(([r,c,o])=>{const mt=new T.MeshBasicMaterial({color:c,transparent:true,opacity:o,fog:false,blending:o<1?T.AdditiveBlending:T.NormalBlending,depthWrite:o>=1});mt.userData.o=o;SUNM.push(mt);const m=new T.Mesh(new T.IcosahedronGeometry(r,1),mt);m.position.copy(SUN);scene.add(m)});
 {const p=[];for(let i=0;i<1500;i++){const v=new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(3800);p.push(v.x,v.y,v.z)}
-const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));var STARS=new T.Points(g,new T.PointsMaterial({color:0xffffff,size:3,sizeAttenuation:false}));scene.add(STARS)}
+const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));var STARS=new T.Points(g,new T.PointsMaterial({color:0xffffff,size:3,sizeAttenuation:false,transparent:true,fog:false,depthWrite:false}));scene.add(STARS)}
+/* sky dome: follows the camera; plain space black until you are inside an atmosphere, then a sky gradient (zenith -> horizon) that is always 'up' = away from the planet */
+const SKY=new T.Mesh(new T.SphereGeometry(100,24,16),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,depthTest:false,
+ uniforms:{top:{value:new T.Color(0x03040a)},hor:{value:new T.Color(0x03040a)},up:{value:new T.Vector3(0,1,0)}},
+ vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+ fragmentShader:'uniform vec3 top;uniform vec3 hor;uniform vec3 up;varying vec3 vD;void main(){float h=dot(normalize(vD),up);gl_FragColor=vec4(mix(hor,top,smoothstep(-.02,.5,h)),1.0);}'}));
+SKY.renderOrder=-10;SKY.frustumCulled=false;scene.add(SKY);
 const mc={};const mat=c=>mc[c]||(mc[c]=new T.MeshStandardMaterial({color:c,flatShading:true,roughness:1}));
 const noise=(x,y,z)=>{const s=Math.sin(Math.round(x*50)*12.9898+Math.round(y*50)*78.233+Math.round(z*50)*37.719)*43758.5453;return s-Math.floor(s)};
 const targets=[];
@@ -135,8 +143,28 @@ function skinModel(k,s){const S=SKIN[k],g=new T.Group(),m=skinMat(k),H=S.head,B=
 function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
-{name:'Verdant',c:new T.Vector3(1500,30,-500),R:1100,atmo:0x7fcfff,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:900,peace:90,pred:24},
-{name:'Ember',c:new T.Vector3(-1450,60,-1000),R:950,atmo:0xff9a5a,cols:[0xc4552b,0xa8431f,0xd9803a,0x7d3a22],trunk:0x2b2020,leaf:[0xff8a2b,0xffc13b],pc:0x6fd0e0,ph:0x2a6b78,pn:'Glow Hopper 🐰',prn:'Lava Stalker ⚠',pr:0x4a1a14,trees:750,peace:70,pred:28}];
+{name:'Verdant',c:new T.Vector3(1500,30,-500),R:1100,atmo:0x7fcfff,ah:330,sky:[0x2c7be0,0xa4d3fa],skyN:[0x040a1a,0x0e1c3c],cloud:0xf6f9ff,cloudSh:0x8fa4c6,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:900,peace:90,pred:24,cloudN:3600},
+{name:'Ember',c:new T.Vector3(-1450,60,-1000),R:950,atmo:0xff9a5a,ah:290,sky:[0xe2a01a,0xffe08a],skyN:[0x150a03,0x2e1b09],cloud:0xfff1d0,cloudSh:0xc79a62,cols:[0xc4552b,0xa8431f,0xd9803a,0x7d3a22],trunk:0x2b2020,leaf:[0xff8a2b,0xffc13b],pc:0x6fd0e0,ph:0x2a6b78,pn:'Glow Hopper 🐰',prn:'Lava Stalker ⚠',pr:0x4a1a14,trees:750,peace:70,pred:28,cloudN:3000}];
+/* atmospheres: each planet has a thick atmosphere (height ah) with a cloud layer inside it (cb..ct above the ground).
+   Two planets must never share an atmosphere, so ah is clamped to leave a clear gap between the atmosphere shells. */
+for(let i=0;i<PDEF.length;i++)for(let j=i+1;j<PDEF.length;j++){const a=PDEF[i],b=PDEF[j],gap=a.c.distanceTo(b.c)-a.R-b.R,mx=Math.max(40,(gap-150)/2);a.ah=Math.min(a.ah,mx);b.ah=Math.min(b.ah,mx)}
+PDEF.forEach(d=>{d.ct=d.ah*.74;d.cb=d.ah*.36;d.RA=d.R+d.ah});
+/* cloud layer: thousands of soft camera-facing puffs between d.cb and d.ct above the ground (one instanced draw per planet).
+   From far away they read as thick cloud cover; flying through them the puffs fade around you and the fog turns white. */
+function makeClouds(d){
+ const N=d.cloudN,off=new Float32Array(N*3),prm=new Float32Array(N*4),seed=rnd(0,50);let n=0,guard=0;
+ while(n<N&&guard++<N*60){const u=rndDir(),f=fbm(u.x*2.6+seed,u.y*2.6+seed,u.z*2.6+seed);if(f<.44+Math.random()*.12)continue; // patchy: gaps show the ground
+  const k=Math.random(),r=d.R+d.cb+(d.ct-d.cb)*k;
+  off[n*3]=d.c.x+u.x*r;off[n*3+1]=d.c.y+u.y*r;off[n*3+2]=d.c.z+u.z*r;
+  prm[n*4]=rnd(40,110);prm[n*4+1]=rnd(0,6.283);prm[n*4+2]=Math.random();prm[n*4+3]=k;n++}
+ const g=new T.InstancedBufferGeometry();
+ g.setAttribute('position',new T.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));g.setIndex([0,1,2,0,2,3]);
+ g.setAttribute('off',new T.InstancedBufferAttribute(off.slice(0,n*3),3));g.setAttribute('prm',new T.InstancedBufferAttribute(prm.slice(0,n*4),4));g.instanceCount=n;
+ const U={uCol:{value:new T.Color(d.cloud)},uSh:{value:new T.Color(d.cloudSh)},uSun:{value:SUN.clone().sub(d.c).normalize()},uC:{value:d.c.clone()},uDay:{value:1},uOp:{value:.55},uFd:{value:0}};
+ const m=new T.Mesh(g,new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,uniforms:U,
+  vertexShader:'attribute vec3 off;attribute vec4 prm;uniform vec3 uC;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vU=position.xy;vec4 mv=viewMatrix*vec4(off,1.0);vD=length(mv.xyz);float s=prm.x,cs=cos(prm.y),sn=sin(prm.y);vec2 q=vec2(position.x*cs-position.y*sn,position.x*sn+position.y*cs)*s;vF=smoothstep(s*.12,s*.95,-mv.z);mv.xy+=q;vH=prm.w;vS=prm.z;vN=normalize(off-uC);gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'uniform vec3 uCol;uniform vec3 uSh;uniform vec3 uSun;uniform float uDay;uniform float uOp;uniform float uFd;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vec2 c1=vec2(cos(vS*40.),sin(vS*23.))*.42;vec2 c2=vec2(cos(vS*31.+2.),sin(vS*47.+1.))*.46;float r0=length(vU),r1=length(vU-c1)/.7,r2=length(vU-c2)/.62;float a=max(exp(-3.4*r0*r0),max(exp(-3.4*r1*r1),exp(-3.4*r2*r2)));a=a*(1.-smoothstep(.8,1.,r0));if(a<.02)discard;float fg=1.-exp(-uFd*uFd*vD*vD);float lit=clamp(dot(vN,uSun)*.55+.55,0.,1.)*(.62+.38*vH);vec3 col=mix(uSh,uCol,lit)*(.2+.8*uDay);gl_FragColor=vec4(col,a*uOp*vF*(1.-fg));}'}));
+ m.frustumCulled=false;m.raycast=()=>{};scene.add(m);d.cloudU=U}
 PDEF.forEach(d=>{
  d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,70); // ~100k triangles (same facet size as the old 220-radius planet), smooth normals (vertices sit exactly on the sphere)
  const P3=g.attributes.position,seed=rnd(0,100),pal=d.cols.map(c=>new T.Color(c)),col=new Float32Array(P3.count*3),tc=new T.Color();
@@ -146,11 +174,14 @@ PDEF.forEach(d=>{
   tc.copy(pal[k]).lerp(pal[k+1],e).offsetHSL(0,0,(vnoise(x*14+seed,y*14,z*14)-.5)*.07);col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b}
  g.setAttribute('color',new T.BufferAttribute(col,3));
  const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:false,roughness:.95,metalness:0}));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
- { // thin glowing atmosphere seen from space (hidden once you are close, so it never tints the ground view)
-  const am=new T.Mesh(new T.SphereGeometry(d.R*1.07,64,40),new T.ShaderMaterial({transparent:true,side:T.BackSide,blending:T.AdditiveBlending,depthWrite:false,
-   uniforms:{c:{value:new T.Color(d.atmo)}},vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-   fragmentShader:'uniform vec3 c;varying vec3 vN;void main(){float i=pow(max(0.0,0.62-dot(vN,vec3(0.0,0.0,1.0))),3.0);gl_FragColor=vec4(c*i*2.2,1.0);}'}));
+ { // thick atmosphere seen from space: a soft halo that fades from the planet's edge out to the top of the atmosphere (hidden once you are inside it)
+  const sd=SUN.clone().sub(d.c).normalize();
+  const am=new T.Mesh(new T.SphereGeometry(d.RA,64,40),new T.ShaderMaterial({transparent:true,side:T.BackSide,blending:T.AdditiveBlending,depthWrite:false,
+   uniforms:{c:{value:new T.Color(d.atmo)},uC:{value:d.c.clone()},uS:{value:sd},uR:{value:d.R},uA:{value:d.ah}},
+   vertexShader:'varying vec3 vW;void main(){vW=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vW,1.0);}',
+   fragmentShader:'uniform vec3 c;uniform vec3 uC;uniform vec3 uS;uniform float uR;uniform float uA;varying vec3 vW;void main(){vec3 rd=normalize(vW-cameraPosition);vec3 oc=uC-cameraPosition;float t=dot(oc,rd);float b=length(oc-rd*t);float x=(b-uR)/uA;float i=x<0.?1.:pow(clamp(1.-x,0.,1.),2.6);vec3 n=normalize(vW-uC);float lit=.3+.7*clamp(dot(n,uS)+.35,0.,1.);gl_FragColor=vec4(c*i*lit*1.15,1.0);}'}));
   am.position.copy(d.c);am.raycast=()=>{};scene.add(am);d.atmoMesh=am}
+ makeClouds(d);
  d.animals=[];d.treeList=[];planets.push(d);
  for(let i=0;i<d.trees;i++){const n=treeSpot(d,true);if(n)makeTree(d,n)}
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
@@ -233,10 +264,10 @@ function animalHit(a){
  return 0}
 
 /* ---------- asteroids ---------- */
-const START=planets[0].c.clone().add(new T.Vector3(-.886,-.035,.461).multiplyScalar(planets[0].R+80)),asteroids=[];
+const START=planets[0].c.clone().add(new T.Vector3(-.886,-.035,.461).multiplyScalar(planets[0].RA+150)),asteroids=[];
 for(let i=0;i<200;i++){
  const r=rnd(3,14);let p;
- do{const d0=planets[i%2];p=rndDir().multiplyScalar(d0.R+rnd(50,900)*Math.cbrt(Math.random())).add(d0.c)}while(p.distanceTo(START)<50||planets.some(d=>p.distanceTo(d.c)<d.R+r*1.3+25));
+ do{const d0=planets[i%2];p=rndDir().multiplyScalar(d0.RA+rnd(40,700)*Math.cbrt(Math.random())).add(d0.c)}while(p.distanceTo(START)<50||planets.some(d=>p.distanceTo(d.c)<d.RA+r*1.3+20));
  let g=new T.IcosahedronGeometry(r,1);if(g.index)g=g.toNonIndexed();const ps=g.attributes.position;
  for(let j=0;j<ps.count;j++){const x=ps.getX(j),y=ps.getY(j),z=ps.getZ(j),f=.78+noise(x,y,z)*.45;ps.setXYZ(j,x*f,y*f,z*f)}
  g.computeVertexNormals();
@@ -375,7 +406,7 @@ function place(type){
  const o=addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
 /* ---------- player ---------- */
-const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0};
+const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0,hh:0,hv:0,esc:null,escT:0,escUp:new T.Vector3(0,1,0),fall:false,vu:new T.Vector3(0,1,0),vsm:false};
 cam.position.copy(START);
 const PS=[{p:new T.Vector3(),r:.9},{p:new T.Vector3(),r:.8}];
 function playerSph(){PS[0].p.copy(cam.position);if(P.mode==='ground'){PS[0].r=.9;PS[1].p.copy(cam.position).addScaledVector(P.up,-1.7);return PS}PS[0].r=1.3;return[PS[0]]}
@@ -387,14 +418,14 @@ function cubeBusy(p){
   for(const a of d.animals)for(const c of a.cs)if(sbDist2(c.p,p)<c.r*c.r)return true}
  return false}
 /* ---------- day/night clock + animal spawn/despawn ---------- */
-const DAY_LEN=240;let worldTime=0,isNight=false,spawnT=0;
+const DAY_LEN=240;let worldTime=0,isNight=false,spawnT=0,dayA=1;
 const hourNow=()=>(8+worldTime/DAY_LEN*24)%24;
 const clockStr=()=>{const h=hourNow();return (isNight?'🌙 Night':'☀ Day')+' '+String(Math.floor(h)).padStart(2,'0')+':'+String(Math.floor(h%1*60)).padStart(2,'0')};
 function despawn(a){unreg(a);const l=a.pl.animals,i=l.indexOf(a);if(i>=0)l.splice(i,1)}
 function spawnTick(dt){
  worldTime+=dt;const h=hourNow(),night=h>=19||h<5;
  if(night!==isNight){isNight=night;say(night?'🌙 Night falls — predators are spawning':'☀ Dawn — predators fade away')}
- const a=.5+.5*Math.cos(2*Math.PI*(h-12)/24);HL.intensity=.35+.55*a;dl.intensity=.3+.9*a;
+ const a=.5+.5*Math.cos(2*Math.PI*(h-12)/24);HL.intensity=.35+.55*a;dl.intensity=.3+.9*a;dayA=a;
  spawnT-=dt;if(spawnT>0)return;spawnT=2;
  for(const d of planets){
   const cap={peace:night?Math.round(d.peace*.3):d.peace,pred:night?d.pred:0};
@@ -481,7 +512,7 @@ const DEATHS={
  hunger:['You skipped lunch. Forever. 🍎','Food was RIGHT there. You just… didn’t.','Your stomach filed a complaint. Fatal.','Died of hunger. Apples exist, you know.'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
@@ -582,14 +613,23 @@ addEventListener('keydown',e=>{
  else if(c in HKEY)sel=HKEY[c];
  else if(c==='BracketLeft')sel=(sel+8)%9;
  else if(c==='BracketRight')sel=(sel+1)%9;
- else if(c==='Digit8'||c==='Numpad8'||c==='ShiftLeft'||c==='ShiftRight')jump();
+ else if(JUMPK.includes(c))jumpDown(c);
  else if(c==='Digit5'||c==='Space')actDown();
 });
 addEventListener('wheel',e=>{if(!active||ui)return;sel=(sel+(e.deltaY>0?1:8))%9},{passive:true});
 addEventListener('keyup',e=>{keys[e.code]=false;
+ if(jh&&e.code===jh.k)jumpUp();
  if(e.code==='Digit5'||e.code==='Space')actUp()});
 addEventListener('mousedown',e=>{if(e.button===0&&active&&!ui)actDown()});
 addEventListener('mouseup',e=>{if(e.button===0)actUp()});
+/* jump key (Shift / 8): TAP = hop on the planet, HOLD = launch up through the clouds into free space.
+   On anti-gravity blocks outside any atmosphere it still jumps off at once. */
+const JUMPK=['Digit8','Numpad8','ShiftLeft','ShiftRight'],HOLD_T=.6,HOPV=13,HOPG=34,ESC_V=75;let jh=null;
+const inAtmo=()=>{for(const d of planets)if(cam.position.distanceTo(d.c)-d.R<d.ah)return d;return null};
+function jumpDown(k){if(P.mode!=='ground'||jh)return;if(P.pl.ag&&!inAtmo()){leave();return}jh={t:0,done:false,k}}
+function jumpUp(){const j=jh;jh=null;$('jb').style.display='none';if(!j||j.done||!active||ui||P.mode!=='ground')return;if(P.pl.ag)say('Hold Shift / 8 to launch into space');else hop()}
+addEventListener('blur',()=>{jh=null;$('jb').style.display='none'});
+function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>0)return;P.hv=HOPV;P.hh=.001}
 let aimObj=null,hitCD=0;
 function actDown(){ // 5 / Space / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
  if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
@@ -618,8 +658,32 @@ function finish(o){
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred||Math.random()<.25){inv.anti++;m+=', +1 Anti-Gravity Core ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
+/* ---------- atmosphere: clouds -> sky colour, no stars below the clouds, gravity pulls you down ---------- */
+const ATM={d:null,alt:0,skyT:0,wo:0},SPACE=new T.Color(0x03040a),HL0=new T.Color(0x9fb4ff),_ca=new T.Color(),_cb=new T.Color(),_cc=new T.Color(),_cd=new T.Color(),DARKC=new T.Color(0x1a2030);
+const cl01=x=>x<0?0:x>1?1:x,sm=(a,b,x)=>{const t=cl01((x-a)/(b-a));return t*t*(3-2*t)};
+function atmoUpdate(){
+ let best=null,ba=1e9;
+ for(const d of planets){const alt=cam.position.distanceTo(d.c)-d.R;if(alt<d.ah&&alt<ba){ba=alt;best=d}}
+ const day=sm(.12,.6,dayA),nightK=sm(.45,.12,dayA);
+ planets.forEach(d=>{d.cloudU.uDay.value=day});
+ ATM.d=best;ATM.alt=ba;let skyT=0,wo=0;
+ if(best){const d=best,mid=(d.ct+d.cb)/2,half=(d.ct-d.cb)/2;
+  skyT=sm(d.ct,d.cb,ba);wo=(1-sm(half*.35,half+35,Math.abs(ba-mid)))*.93;
+  _ca.setHex(d.skyN[0]).lerp(_cc.setHex(d.sky[0]),day); // zenith
+  _cb.setHex(d.skyN[1]).lerp(_cc.setHex(d.sky[1]),day); // horizon
+  _cd.copy(DARKC).lerp(_cc.setHex(d.cloud),day);        // cloud / whiteout colour
+  _ca.lerp(SPACE,1-skyT);_cb.lerp(SPACE,1-skyT);_ca.lerp(_cd,wo);_cb.lerp(_cd,wo);
+  SKY.material.uniforms.top.value.copy(_ca);SKY.material.uniforms.hor.value.copy(_cb);scene.fog.color.copy(_cb);
+  scene.fog.density=.0003+.0007*skyT+.0155*wo;
+  const up=SKY.material.uniforms.up.value;if(P.mode==='ground')up.copy(P.up);else up.copy(cam.position).sub(d.c).normalize();
+  HL.color.copy(HL0).lerp(_ca,skyT*.5)}
+ else{SKY.material.uniforms.top.value.copy(SPACE);SKY.material.uniforms.hor.value.copy(SPACE);scene.fog.color.copy(SPACE);scene.fog.density=0;HL.color.copy(HL0)}
+ ATM.skyT=skyT;ATM.wo=wo;planets.forEach(d=>{d.cloudU.uFd.value=scene.fog.density});
+ STARS.material.opacity=(1-wo)*((1-skyT)+skyT*nightK*.9);
+ const sv=(1-wo)*(1-skyT*(1-sm(.1,.4,dayA)));SUNM.forEach((m,i)=>{m.opacity=m.userData.o*sv*(i?1-skyT:1)}); // the soft outer glow would show as a hard-edged bubble against a bright sky
+}
 /* ---------- movement, gravity, collisions ---------- */
-const EYE=2.4,_up=new T.Vector3(),_t1=new T.Vector3(),_v=new T.Vector3(),_p=new T.Vector3(),_n=new T.Vector3();
+const EYE=2.4,_up=new T.Vector3(),_t1=new T.Vector3(),_t2=new T.Vector3(),_v=new T.Vector3(),_p=new T.Vector3(),_n=new T.Vector3();
 function sbDist2(p,b){boxPt(b,p,_k);const x=_k.x-p.x,y=_k.y-p.y,z=_k.z-p.z;return x*x+y*y+z*z}
 function hitTest(p,r){for(const o of blocks.values())if(sbDist2(p,o.pos)<r*r)return true;for(const a of asteroids)if(a.pos.distanceTo(p)<a.rad+r)return true;return false}
 function colRes(pos,up,vel,skip){
@@ -639,35 +703,51 @@ function colRes(pos,up,vel,skip){
 const inp=()=>[(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)];
 function spaceStep(dt){
  cam.up.set(0,1,0);cam.rotation.set(P.pitch,P.yaw,0);cam.getWorldDirection(fwd);rgt.crossVectors(fwd,UP).normalize();
+ if(P.esc){ // launched off a planet: keep rising through the clouds until the atmosphere is behind you
+  const d=P.esc,v=_t1.copy(cam.position).sub(d.c),L=v.length();P.escT+=dt;
+  if(L>d.RA+25||P.escT>9){P.esc=null;P.launch=0;say('Free flight — you left '+d.name)}
+  else{v.divideScalar(L||1);const k=Math.min(1,P.escT/.8);v.multiplyScalar(k).addScaledVector(P.escUp,1-k).normalize();P.vel.copy(v).multiplyScalar(ESC_V);P.launch=.3}}
  if(P.launch>0)P.launch-=dt;
- else{const[f,r]=inp(),want=fwd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(36);P.vel.lerp(want,1-Math.exp(-6*dt))}
+ else{const[f,r]=inp(),want=fwd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(36);
+  P.vel.lerp(want,1-Math.exp(-6*dt))}
  cam.position.addScaledVector(P.vel,dt);colRes(cam.position,null,P.vel);
  for(const d of planets){const v=_t1.copy(cam.position).sub(d.c),L=v.length();if(L<=d.R+EYE+.05&&L<=surfR(d,_v.copy(v).divideScalar(L||1))+EYE+.05&&v.dot(P.vel)<=.01){land(d);break}}
+ if(P.mode==='space'&&!P.esc&&P.launch<=0)for(const d of planets)if(cam.position.distanceTo(d.c)-d.R<d.cb-8){capture(d);break} // flown down through the clouds: the planet takes hold
  if(P.mode==='space'&&P.launch<=0){const ag=agList();if(ag.length){const dist=agNearest(cam.position,ag,_cp);if(dist<=EYE+.05&&_t1.copy(cam.position).sub(_cp).dot(P.vel)<=.01)land(AGW)}} // fly close to any anti-gravity block and you stick to it, every time
 }
-function land(d){
- P.mode='ground';P.pl=d;P.agT=0;cam.getWorldDirection(fwd);const up=P.up;
+function land(d,quiet){
+ P.mode='ground';P.pl=d;P.agT=0;P.hh=0;P.hv=0;P.esc=null;P.fall=false;P.vu.copy(cam.up);P.vsm=true;cam.getWorldDirection(fwd);const up=P.up;
  if(d.ag){const dist=agNearest(cam.position,agList(),_cp);up.set(0,1,0);if(dist>1e-4&&isFinite(dist))up.copy(cam.position).sub(_cp).divideScalar(dist)}
  else up.copy(cam.position).sub(d.c).normalize();
  P.pitch=Math.max(-1.5,Math.min(1.5,Math.asin(Math.max(-1,Math.min(1,fwd.dot(up))))));
  P.hd.copy(fwd).addScaledVector(up,-fwd.dot(up));
  if(P.hd.lengthSq()<.01){P.hd.set(0,0,1).addScaledVector(up,-up.z);if(P.hd.lengthSq()<.01)P.hd.set(1,0,0).addScaledVector(up,-up.x)}
- P.hd.normalize();P.vel.set(0,0,0);say('Landed on '+d.name+' — Shift / 8 to jump back to space');
+ P.hd.normalize();P.vel.set(0,0,0);if(!quiet)say('Landed on '+d.name+' — tap Shift / 8 to hop, hold to launch into space');
 }
-function aim(up){const l=_t1.copy(P.hd).multiplyScalar(Math.cos(P.pitch)).addScaledVector(up,Math.sin(P.pitch));cam.up.copy(up);cam.lookAt(cam.position.x+l.x,cam.position.y+l.y,cam.position.z+l.z)}
+/* the planet takes hold below the cloud layer: hand over to ground mode, but keep the height and speed you had and let gravity ease you down */
+function capture(d){
+ const v=_t1.copy(cam.position).sub(d.c),L=v.length(),rad=v.divideScalar(L||1),vr=P.vel.dot(rad),h=Math.max(0,L-(surfR(d,rad)+EYE));
+ land(d,true);P.hh=h;P.hv=Math.min(0,vr);P.fall=true;
+}
+let _dt=.016;
+function aim(up){
+ if(P.vsm){P.vu.lerp(up,1-Math.exp(-3.5*_dt));if(P.vu.lengthSq()<1e-4)P.vu.copy(up);P.vu.normalize();if(P.vu.dot(up)>.9999){P.vu.copy(up);P.vsm=false}cam.up.copy(P.vu)}else cam.up.copy(up);
+ const l=_t1.copy(P.hd).multiplyScalar(Math.cos(P.pitch)).addScaledVector(up,Math.sin(P.pitch));cam.lookAt(cam.position.x+l.x,cam.position.y+l.y,cam.position.z+l.z)}
 function groundStep(dt){
  const d=P.pl;if(d.ag){agGround(dt);return}
+ if(P.fall){const vd=Math.min(55,3+.55*P.hh);P.hv+=(-vd-P.hv)*(1-Math.exp(-1.8*dt));P.hh+=P.hv*dt;if(P.hh<=0){P.hh=0;P.hv=0;P.fall=false;say('Touched down on '+d.name)}}
+ else if(P.hh>0){P.hv-=HOPG*dt;P.hh+=P.hv*dt;if(P.hh<=0){P.hh=0;P.hv=0}}
  const up=P.up.copy(cam.position).sub(d.c).normalize();
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(d.spd||11);
  cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
- up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
+ up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE+P.hh,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(P.hh>0?1:1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up);
 }
 /* walking on anti-gravity blocks: "down" = toward the nearest anti-gravity surface, so edges, corners, walls and
    the undersides of every connected block are all walkable. The heading is carried around with the up vector. */
 function agGround(dt){
- const ag=agList();if(!ag.length){jump();say('The anti-gravity blocks are gone — free flight!');return}
+ const ag=agList();if(!ag.length){leave();say('The anti-gravity blocks are gone — free flight!');return}
  const old=_a.copy(P.up),pos=cam.position;
  P.hd.addScaledVector(old,-P.hd.dot(old));if(P.hd.lengthSq()<1e-6)P.hd.set(1,0,0).addScaledVector(old,-old.x);P.hd.normalize();
  rgt.crossVectors(P.hd,old).normalize();
@@ -686,22 +766,27 @@ function agGround(dt){
  if(P.hd.lengthSq()<1e-6)P.hd.set(1,0,0).addScaledVector(up,-up.x);P.hd.normalize();
  P.up.copy(up);aim(up);
 }
-function jump(){
- if(P.mode!=='ground')return;cam.getWorldDirection(fwd);const up=_a.copy(P.up);
+function leave(){ // off the ground and away: through the clouds into free space (or just off an anti-gravity block)
+ if(P.mode!=='ground')return;cam.getWorldDirection(fwd);const up=_a.copy(P.up),pl=P.pl,A=inAtmo();
  P.yaw=Math.atan2(-fwd.x,-fwd.z);P.pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y)));
- P.vel.copy(up).multiplyScalar(36);P.launch=1.3;P.mode='space';P.pl=null;say('Released from gravity — free flight!');
+ P.vel.copy(up).multiplyScalar(36);P.launch=1.3;P.mode='space';P.pl=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;$('jb').style.display='none';
+ if(A){P.esc=A;P.escT=0;P.escUp.copy(up);say('🚀 Launching from '+A.name+' — up through the clouds!')}else say('Released from gravity — free flight!');
 }
 /* ---------- loop ---------- */
 const ray=new T.Raycaster();ray.far=14;const clock=new T.Clock(),fwd=new T.Vector3(),rgt=new T.Vector3();
 function loop(){
- requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+ requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);_dt=dt;
  if(active&&!ui){
   if(P.mode==='ground')groundStep(dt);else spaceStep(dt);
   cam.getWorldDirection(fwd);
-  planets.forEach(d=>{d.atmoMesh.visible=cam.position.distanceTo(d.c)>d.R*1.1});
-  let loc=P.mode==='ground'?'On '+P.pl.name+'  ·  Shift / 8 = jump to space':'Deep space';
-  if(P.mode==='space')planets.forEach(d=>{if(cam.position.distanceTo(d.c)<d.R+400)loc='Near '+d.name});
-  STARS.position.copy(cam.position);
+  atmoUpdate();
+  planets.forEach(d=>{d.atmoMesh.visible=!ATM.d&&cam.position.distanceTo(d.c)>d.RA});
+  if(jh&&!jh.done){if(P.mode!=='ground'){jh=null;$('jb').style.display='none'}else{jh.t+=dt;if(jh.t>.12){$('jb').style.display='block';$('jb').firstChild.style.width=Math.min(100,jh.t/HOLD_T*100)+'%'}if(jh.t>=HOLD_T){jh.done=true;leave()}}}
+  const tf=P.esc?90:75;if(Math.abs(cam.fov-tf)>.05){cam.fov+=(tf-cam.fov)*Math.min(1,5*dt);cam.updateProjectionMatrix()}
+  let loc=P.mode==='ground'?(P.fall?'Descending to '+P.pl.name+' · gravity':'On '+P.pl.name+(P.pl.ag?'  ·  hold Shift / 8 = launch':'  ·  tap Shift / 8 = hop, hold = launch')):'Deep space';
+  if(P.mode==='space'){planets.forEach(d=>{if(cam.position.distanceTo(d.c)<d.RA+300)loc='Near '+d.name});
+   if(ATM.d){const A=ATM,d=A.d;loc=P.esc?'Launching from '+d.name:A.alt>d.ct?'Entering '+d.name+"'s atmosphere":'Inside the clouds of '+d.name}}
+  STARS.position.copy(cam.position);SKY.position.copy(cam.position);
   if(cam.position.length()>5200){cam.position.setLength(5200);say('Edge of the world — nothing beyond')}
   $('loc').innerHTML='📍 '+loc+'<br>'+clockStr()+(isNight?' · predators roam':'');
   P.hg=Math.max(0,P.hg-.5*dt);if(P.hg<=0)hurt(3*dt,'hunger');else if(P.hg>60)P.hp=Math.min(100,P.hp+1*dt);
@@ -720,7 +805,7 @@ function loop(){
   treeTick(dt);
  }
  syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
- stepGlitter(dt);
+ stepGlitter(dt);SKY.position.copy(cam.position);
  ren.render(scene,cam);
 }
 gameReady=true;loop();

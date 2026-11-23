@@ -12,7 +12,7 @@
 Actions tab → latest run → download `itch-game-zip` → upload it on itch.io as "HTML – played in the browser" (itch zip needs `index.html` at its root, which this has).
 
 ## Controls
-WASD/Arrows move, Shift/8 jump off a planet / anti-gravity block into space, mouse look (click to capture, Esc release).
+WASD/Arrows move, mouse look (click to capture, Esc release). Shift/8: **tap = hop** on a planet, **hold (0.6 s) = launch** up through the clouds into space; on anti-gravity blocks outside an atmosphere a tap jumps off at once.
 Hotbar (9 slots): keys 1 2 3 4 6 7 9, mouse wheel, or [ ] select a slot. 5/Space tap = use the selected item (eat / heal / place block / anti-gravity core), hold = break; with food or medicine selected, hold = keep eating. 0/E = inventory.
 
 ## Day/night & creatures
@@ -53,3 +53,12 @@ Blocks no longer snap to one world-wide grid. Each structure is its own square g
 - Anywhere else: a new grid starts, and the first block sits flat on the ground.
 - Collision, anti-gravity walking and placement all treat blocks as turned cubes. Saves store each grid's origin and rotation (save format lv 3).
 - Old saves (before grids): the planets moved and grew, so their blocks are returned to your inventory.
+
+## Atmospheres
+Each planet is wrapped in a thick atmosphere (Verdant 330 units high, Ember 290) with a cloud layer inside it (roughly 36%-74% of the way up).
+- **From far away** you see the planet with a halo and its cloud cover (thousands of soft instanced cloud puffs, one draw call per planet).
+- **Flying in** you pass through the cloud layer: the fog turns white (whiteout), stars switch off and the sky colour fades in -- **Verdant's sky is blue, Ember's is yellow/golden**. Both darken at night, and stars come back after dark.
+- **Below the clouds** the planet's gravity takes hold automatically: you ease down (speed ramps up, then slows to a soft touchdown) and the camera levels itself to the horizon. You can still steer sideways while falling, and hold Shift/8 to launch again.
+- **Leaving**: hold Shift/8 for 0.6 s (a bar fills under the crosshair). You rocket straight up through the clouds (FOV widens) until you are clear of the atmosphere, then fly freely. Hopping (tap) is ~2.4 units high.
+- **Planets never share an atmosphere**: atmosphere heights are clamped at start-up so there is always at least a 150-unit clear gap between two atmosphere shells (currently ~320 units; the planets' surfaces are ~940 apart). Asteroids and the respawn point are placed outside every atmosphere.
+- Tuning lives in `PDEF` (`ah`, `sky`, `skyN`, `cloud`, `cloudN`) in `src/index.html`.
