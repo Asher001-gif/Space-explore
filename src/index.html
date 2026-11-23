@@ -88,10 +88,10 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
-<p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Shift / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
-<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / Space / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
+<p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
+<p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 / Space on a block — that block and every block connected to it gets gravity for good. Shift / 8 to jump off.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -414,7 +414,7 @@ const ITEMS={
  food:{n:'Meat',img:'meat',use:{hg:25}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
- anti:{n:'Anti-Gravity Core',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5/Space'},
+ anti:{n:'Anti-Gravity Core',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5'},
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 2x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 2x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
@@ -552,7 +552,7 @@ function useAnti(){
  if(cnt>0){inv.anti--;glitter(o.pos);save()}
  cam.position.copy(o.pos).addScaledVector(n,1+EYE);
  land(AGW);
- say(cnt>0?'Anti-gravity on for '+cnt+' connected block'+(cnt>1?'s':'')+' ✨ Walk anywhere on them · Shift / 8 to jump off':'Already anti-gravity — walk on it · Shift / 8 to jump off')}
+ say(cnt>0?'Anti-gravity on for '+cnt+' connected block'+(cnt>1?'s':'')+' ✨ Walk anywhere on them · Space / 8 to jump off':'Already anti-gravity — walk on it · Space / 8 to jump off')}
 /* ---------- save / load (localStorage) ---------- */
 const SAVE_KEY='spaceExplore.save.v1';
 function save(){
@@ -699,20 +699,20 @@ addEventListener('keydown',e=>{
  else if(c==='BracketLeft')sel=(sel+8)%9;
  else if(c==='BracketRight')sel=(sel+1)%9;
  else if(JUMPK.includes(c))jumpDown(c);
- else if(c==='Digit5'||c==='Space')actDown();
+ else if(c==='Digit5')actDown();
 });
 addEventListener('wheel',e=>{if(!active||ui)return;sel=(sel+(e.deltaY>0?1:8))%9},{passive:true});
 addEventListener('keyup',e=>{keys[e.code]=false;
  if(jh&&e.code===jh.k)jumpUp();
- if(e.code==='Digit5'||e.code==='Space')actUp()});
+ if(e.code==='Digit5')actUp()});
 addEventListener('mousedown',e=>{if(e.button===0&&active&&!ui)actDown()});
 addEventListener('mouseup',e=>{if(e.button===0)actUp()});
-/* jump key (Shift / 8): TAP = hop on the planet, HOLD = launch up through the clouds into free space.
+/* jump key (Space / 8): TAP = hop on the planet, HOLD = launch up through the clouds into free space.
    On anti-gravity blocks outside any atmosphere it still jumps off at once. */
-const JUMPK=['Digit8','Numpad8','ShiftLeft','ShiftRight'],HOLD_T=.6,HOPV=13,HOPG=34,ESC_V=75;let jh=null;
+const JUMPK=['Space','Digit8','Numpad8'],HOLD_T=.6,HOPV=13,HOPG=34,ESC_V=75;let jh=null;
 const inAtmo=()=>{for(const d of planets)if(cam.position.distanceTo(d.c)-d.R<d.ah)return d;return null};
 function jumpDown(k){if(P.mode!=='ground'||jh)return;if(P.pl.ag&&!inAtmo()){leave();return}jh={t:0,done:false,k}}
-function jumpUp(){const j=jh;jh=null;$('jb').style.display='none';if(!j||j.done||!active||ui||P.mode!=='ground')return;if(P.pl.ag)say('Hold Shift / 8 to launch into space');else hop()}
+function jumpUp(){const j=jh;jh=null;$('jb').style.display='none';if(!j||j.done||!active||ui||P.mode!=='ground')return;if(P.pl.ag)say('Hold Space / 8 to launch into space');else hop()}
 addEventListener('blur',()=>{jh=null;$('jb').style.display='none'});
 /* ---------- touch controls: left stick = move, drag the screen = look, buttons = act / jump / inventory, tap a hotbar slot to select ---------- */
 let touchOn=false;
@@ -739,7 +739,7 @@ function enableTouch(){
  const press=(id,down,up)=>{const b=$(id);b.addEventListener('touchstart',e=>{e.preventDefault();if(active||id==='bInv')down()},{passive:false});
   if(up){const f=e=>{e.preventDefault();up()};b.addEventListener('touchend',f,{passive:false});b.addEventListener('touchcancel',f,{passive:false})}};
  press('bAct',()=>{if(!ui)actDown()},()=>actUp());
- press('bJump',()=>{if(!ui)jumpDown('ShiftLeft')},()=>jumpUp());
+ press('bJump',()=>{if(!ui)jumpDown('Space')},()=>jumpUp());
  press('bInv',()=>openMenu(!ui));
  // hotbar
  [...$('hot').children].forEach((el,i)=>el.addEventListener('touchstart',e=>{e.preventDefault();if(active&&!ui)sel=i},{passive:false}));
@@ -756,7 +756,7 @@ function enableTouch(){
 if(COARSE)enableTouch();else addEventListener('touchstart',enableTouch,{once:true,passive:true}); // a touch on a laptop-sized device switches the controls on too
 function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>0)return;P.hv=HOPV;P.hh=.001}
 let aimObj=null,hitCD=0;
-function actDown(){ // 5 / Space / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
+function actDown(){ // 5 / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
  if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
  const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&aimObj.kind==='animal'){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
 function actUp(){if(hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}}
@@ -848,7 +848,7 @@ function land(d,quiet){
  P.pitch=Math.max(-1.5,Math.min(1.5,Math.asin(Math.max(-1,Math.min(1,fwd.dot(up))))));
  P.hd.copy(fwd).addScaledVector(up,-fwd.dot(up));
  if(P.hd.lengthSq()<.01){P.hd.set(0,0,1).addScaledVector(up,-up.z);if(P.hd.lengthSq()<.01)P.hd.set(1,0,0).addScaledVector(up,-up.x)}
- P.hd.normalize();P.vel.set(0,0,0);if(!quiet)say('Landed on '+d.name+' — tap Shift / 8 to hop, hold to launch into space');
+ P.hd.normalize();P.vel.set(0,0,0);if(!quiet)say('Landed on '+d.name+' — tap Space / 8 to hop, hold to launch into space');
 }
 /* the planet takes hold below the cloud layer: hand over to ground mode, but keep the height and speed you had and let gravity ease you down */
 function capture(d){
@@ -909,7 +909,7 @@ function loop(){
   planets.forEach(d=>{d.atmoMesh.visible=!ATM.d&&cam.position.distanceTo(d.c)>d.RA});
   if(jh&&!jh.done){if(P.mode!=='ground'){jh=null;$('jb').style.display='none'}else{jh.t+=dt;if(jh.t>.12){$('jb').style.display='block';$('jb').firstChild.style.width=Math.min(100,jh.t/HOLD_T*100)+'%'}if(jh.t>=HOLD_T){jh.done=true;leave()}}}
   const tf=(P.esc?90:75)+fovAdd;if(Math.abs(cam.fov-tf)>.05){cam.fov+=(tf-cam.fov)*Math.min(1,5*dt);cam.updateProjectionMatrix()}
-  let loc=P.mode==='ground'?(P.fall?'Descending to '+P.pl.name+' · gravity':'On '+P.pl.name+(P.pl.ag?'  ·  hold Shift / 8 = launch':'  ·  tap Shift / 8 = hop, hold = launch')):'Deep space';
+  let loc=P.mode==='ground'?(P.fall?'Descending to '+P.pl.name+' · gravity':'On '+P.pl.name+(P.pl.ag?'  ·  hold Space / 8 = launch':'  ·  tap Space / 8 = hop, hold = launch')):'Deep space';
   if(P.mode==='space'){planets.forEach(d=>{if(cam.position.distanceTo(d.c)<d.RA+300)loc='Near '+d.name});
    if(ATM.d){const A=ATM,d=A.d;loc=P.esc?'Launching from '+d.name:A.alt>d.ct?'Entering '+d.name+"'s atmosphere":'Inside the clouds of '+d.name}}
   STARS.position.copy(cam.position);SKY.position.copy(cam.position);
