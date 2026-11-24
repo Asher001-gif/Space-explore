@@ -261,6 +261,31 @@ function makeClouds(d){
   vertexShader:'attribute vec3 off;attribute vec4 prm;uniform vec3 uC;uniform mat3 uRot;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vU=position.xy;vec3 wo=uC+uRot*(off-uC);vec4 mv=viewMatrix*vec4(wo,1.0);vD=length(mv.xyz);float s=prm.x,cs=cos(prm.y),sn=sin(prm.y);vec2 q=vec2(position.x*cs-position.y*sn,position.x*sn+position.y*cs)*s;vF=smoothstep(s*.12,s*.95,-mv.z);mv.xy+=q;vH=prm.w;vS=prm.z;vN=normalize(wo-uC);gl_Position=projectionMatrix*mv;}',
   fragmentShader:'uniform vec3 uCol;uniform vec3 uSh;uniform vec3 uSun;uniform float uDay;uniform float uOp;uniform float uFd;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vec2 c1=vec2(cos(vS*40.),sin(vS*23.))*.42;vec2 c2=vec2(cos(vS*31.+2.),sin(vS*47.+1.))*.46;float r0=length(vU),r1=length(vU-c1)/.7,r2=length(vU-c2)/.62;float a=max(exp(-3.4*r0*r0),max(exp(-3.4*r1*r1),exp(-3.4*r2*r2)));a=a*(1.-smoothstep(.8,1.,r0));if(a<.02)discard;float fg=1.-exp(-uFd*uFd*vD*vD);float lit=clamp(dot(vN,uSun)*.55+.55,0.,1.)*(.62+.38*vH);vec3 col=mix(uSh,uCol,lit)*(.2+.8*uDay);gl_FragColor=vec4(col,a*uOp*vF*(1.-fg));}'}));
  m.frustumCulled=false;m.raycast=()=>{};scene.add(m);d.cloudU=U}
+/* ---------- ground detail: tileable procedural noise, projected triplanar at 4 scales on top of the vertex colours ---------- */
+const GTEX=(()=>{const S=256,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d'),im=g.createImageData(S,S);
+ const oct=[4,8,16,32,64,128].map(f=>{const a=new Float32Array(f*f);for(let i=0;i<a.length;i++)a[i]=Math.random();return{f,a}});
+ const val=(o,u,v)=>{const f=o.f,x=u*f,y=v*f,x0=Math.floor(x),y0=Math.floor(y),fx=x-x0,fy=y-y0,sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy),X0=x0%f,Y0=y0%f,X1=(X0+1)%f,Y1=(Y0+1)%f,a=o.a;
+  return (a[Y0*f+X0]*(1-sx)+a[Y0*f+X1]*sx)*(1-sy)+(a[Y1*f+X0]*(1-sx)+a[Y1*f+X1]*sx)*sy};
+ for(let y=0;y<S;y++)for(let x=0;x<S;x++){let v=0,w=.5,n=0;for(let k=0;k<oct.length;k++){v+=val(oct[k],x/S,y/S)*w;n+=w;w*=.55}v/=n;
+  v=Math.max(0,Math.min(1,(v-.5)*2.1+.5)); // stretch contrast
+  const i=(y*S+x)*4,gr=Math.random(); // R = clumpy noise, G = per-pixel grain (grass blades / grit)
+  im.data[i]=v*255;im.data[i+1]=gr*255;im.data[i+2]=0;im.data[i+3]=255}
+ g.putImageData(im,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;t.generateMipmaps=true;t.minFilter=T.LinearMipmapLinearFilter;t.magFilter=T.LinearFilter;return t})();
+function groundMat(d){
+ const ember=d.name==='Ember',U={uG:{value:GTEX},uGC:{value:ember?.75:.6},uTint:{value:ember?new T.Color(.72,.62,.55):new T.Color(1.14,1.02,.74)}};
+ const mt=new T.MeshStandardMaterial({vertexColors:true,flatShading:false,roughness:.95,metalness:0});
+ mt.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGP;varying vec3 vGN;').replace('#include <begin_vertex>','#include <begin_vertex>\nvGP=position;vGN=normal;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
+uniform sampler2D uG;uniform float uGC;uniform vec3 uTint;varying vec3 vGP;varying vec3 vGN;
+vec2 gTri(float s,vec3 w){return texture2D(uG,vGP.yz*s).rg*w.x+texture2D(uG,vGP.xz*s).rg*w.y+texture2D(uG,vGP.xy*s).rg*w.z;}`)
+  .replace('#include <color_fragment>',`#include <color_fragment>
+{vec3 gw=pow(abs(normalize(vGN)),vec3(4.));gw/=(gw.x+gw.y+gw.z);
+ float gA=gTri(.9,gw).r,gB=gTri(.23,gw).r,gC=gTri(.052,gw).r,gD=gTri(.011,gw).r,gG=gTri(3.3,gw).g;
+ float gd=(gA-.5)*.45+(gB-.5)*.6+(gC-.5)*.8+(gD-.5)*.7+(gG-.5)*.3;
+ diffuseColor.rgb*=clamp(1.+gd*uGC,.35,1.7);
+ diffuseColor.rgb*=mix(vec3(1.),uTint,smoothstep(.45,.72,gC*.6+gD*.4));}`)};
+ return mt}
 PDEF.forEach(d=>{
  if(d.name==='Verdant')d.water=buildWater(d);
  d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,d.water?(COARSE?95:125):70); // ~100k triangles (same facet size as the old 220-radius planet), smooth normals (vertices sit exactly on the sphere)
@@ -279,7 +304,7 @@ PDEF.forEach(d=>{
     let nx=x+s1*ex+s2*fx,ny=y+s2*fy,nz=z+s1*ez+s2*fz;const nl=Math.hypot(nx,ny,nz)||1;NR.setXYZ(i,nx/nl,ny/nl,nz/nl)}}
   col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b}
  g.setAttribute('color',new T.BufferAttribute(col,3));if(d.water){P3.needsUpdate=true;NR.needsUpdate=true}
- const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:false,roughness:.95,metalness:0}));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
+ const m=new T.Mesh(g,groundMat(d));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
  if(d.water){ // the sea surface: a smooth sphere that catches the sun's glint
   const wm=new T.Mesh(new T.IcosahedronGeometry(d.wr,60),new T.MeshPhongMaterial({color:0x1d77b0,emissive:0x03101c,specular:0x6f93b3,shininess:55,transparent:true,opacity:.8,side:T.DoubleSide}));
   wm.position.copy(d.c);wm.raycast=()=>{};scene.add(wm);d.waterMesh=wm}
