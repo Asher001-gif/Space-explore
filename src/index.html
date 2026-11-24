@@ -171,6 +171,7 @@ function skinModel(k,s){const S=SKIN[k],g=new T.Group(),m=skinMat(k),H=S.head,B=
  g.userData.legs=legs;g.userData.head=head;g.userData.tail=tail;
  return g}
 function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
+const DAY_V=1200,DAY_E=1500,OLD_DAY_V=240,OLD_DAY_E=300; // seconds per full day/night cycle (old saves used 240/300)
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
 {name:'Verdant',c:new T.Vector3(1500,30,-500),R:1100,atmo:0x7fcfff,ah:330,sky:[0x2c7be0,0xa4d3fa],skyN:[0x040a1a,0x0e1c3c],cloud:0xf6f9ff,cloudSh:0x8fa4c6,cols:[0x3f9b4a,0x4fae55,0x2f8a42,0x7a6a45],trunk:0x6b4a2b,leaf:[0x2e8b3a,0x47b04f],pc:0xf4f1e8,ph:0x3a3a3a,pn:'Woolly Puff 🐑',prn:'Shadow Wolf ⚠',pr:0x7a1f1f,trees:900,peace:90,pred:24,cloudN:3600},
@@ -180,7 +181,7 @@ const PDEF=[
 for(let i=0;i<PDEF.length;i++)for(let j=i+1;j<PDEF.length;j++){const a=PDEF[i],b=PDEF[j],gap=a.c.distanceTo(b.c)-a.R-b.R,mx=Math.max(40,(gap-150)/2);a.ah=Math.min(a.ah,mx);b.ah=Math.min(b.ah,mx)}
 PDEF.forEach(d=>{d.ct=d.ah*.74;d.cb=d.ah*.36;d.RA=d.R+d.ah;
  d.axis=(d.name==='Verdant'?new T.Vector3(0,1,0):new T.Vector3(.25,1,-.15)).normalize(); // spin axis
- d.spin=d.name==='Verdant'?2*Math.PI/240:-2*Math.PI/300; // rad/s: one day = 240 s (Verdant) / 300 s (Ember, turns the other way)
+ d.spin=d.name==='Verdant'?2*Math.PI/DAY_V:-2*Math.PI/DAY_E; // rad/s: one day = 20 min (Verdant) / 25 min (Ember, turns the other way)
  d.ang=0;d.rq=new T.Quaternion()});
 /* cloud layer: thousands of soft camera-facing puffs between d.cb and d.ct above the ground (one instanced draw per planet).
    From far away they read as thick cloud cover; flying through them the puffs fade around you and the fog turns white. */
@@ -495,7 +496,7 @@ function spinPlanet(d,ang,full){
   cam.position.sub(c).applyQuaternion(q).add(c);P.hd.applyQuaternion(q);P.up.applyQuaternion(q);P.vu.applyQuaternion(q)}
 }
 function spinWorld(dt){for(const d of planets){const a=d.spin*dt;d.ang+=a;spinPlanet(d,a,true)}}
-function syncSpin(){for(const d of planets){const t=d.spin*worldTime,a=t-d.ang;if(a){spinPlanet(d,a,false);d.ang=t}}} // after a save is loaded
+function syncSpin(angs){for(let i=0;i<planets.length;i++){const d=planets[i],t=angs&&Number.isFinite(angs[i])?angs[i]:(d.name==='Verdant'?2*Math.PI/OLD_DAY_V:-2*Math.PI/OLD_DAY_E)*worldTime,a=t-d.ang;if(a){spinPlanet(d,a,false);d.ang=t}}} // after a save is loaded
 function despawn(a){unreg(a);const l=a.pl.animals,i=l.indexOf(a);if(i>=0)l.splice(i,1)}
 function retire(a){if(a.root.position.distanceTo(cam.position)>45)despawn(a);else{a.dying=(a.dying||0)+2;a.root.scale.setScalar(Math.max(.05,1-a.dying/6));if(a.dying>=6)despawn(a)}}
 function spawnTick(dt){
@@ -565,7 +566,7 @@ function save(){
  try{
   const b=[],ss=new Map();blocks.forEach(o=>{ss.set(o.s.id,o.s);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0])});
   const S=[...ss.values()].map(g=>[g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w]);
-  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:3,structs:S,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,lay:layout,pos:posSnap()}));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:3,structs:S,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()}));
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
 }
 function loadSave(){
@@ -585,7 +586,7 @@ function loadSave(){
   for(const k in refund)inv[k]=(inv[k]||0)+refund[k];
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
-  if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin()}
+  if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin(d.ang)}
   if(d.pos&&Array.isArray(d.pos.p)&&d.pos.p.length===3&&d.pos.p.every(Number.isFinite))savedPos=d.pos;
   if(d.lv>=2&&Array.isArray(d.lay)&&(d.lay.length===36||d.lay.length===NS))d.lay.forEach((k,i)=>{const j=d.lay.length===36&&i>=27?i+(BP-27):i;layout[j]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
  }catch(e){/* corrupt save - ignore and start fresh */}
