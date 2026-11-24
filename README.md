@@ -12,14 +12,14 @@
 Actions tab → latest run → download `itch-game-zip` → upload it on itch.io as "HTML – played in the browser" (itch zip needs `index.html` at its root, which this has).
 
 ## Controls
-WASD/Arrows move, mouse look (click to capture, Esc release). Shift/8: **tap = hop** on a planet, **hold (0.6 s) = launch** up through the clouds into space; on anti-gravity blocks outside an atmosphere a tap jumps off at once.
-Hotbar (9 slots): keys 1 2 3 4 6 7 9, mouse wheel, or [ ] select a slot. 5/Space tap = use the selected item (eat / heal / place block / anti-gravity core), hold = break; with food or medicine selected, hold = keep eating. 0/E = inventory.
+WASD/Arrows move, mouse look (click to capture, Esc release). Shift/8: **tap = hop** on a planet, **hold (0.6 s) = launch** up through the clouds into space; on Gravity Generator blocks outside an atmosphere a tap jumps off at once.
+Hotbar (9 slots): keys 1 2 3 4 6 7 9, mouse wheel, or [ ] select a slot. 5/Space tap = use the selected item (eat / heal / place block / Gravity Generator), hold = break; with food or medicine selected, hold = keep eating. 0/E = inventory.
 
 ## Day/night & creatures
-A full day lasts 4 minutes. Peaceful animals fill the planets by day; predators spawn at night (19:00-05:00) and fade at dawn. Animals/predators can drop an Anti-Gravity Core.
+A full day lasts 4 minutes. Peaceful animals fill the planets by day; predators spawn at night (19:00-05:00) and fade at dawn. Animals/predators can drop a Gravity Generator.
 
-## Anti-gravity blocks
-Select an Anti-Gravity Core in the hotbar, aim at a placed block and tap 5/Space. That block **and every block connected to it** (touching faces, edges or corners) becomes anti-gravity: you stick to the nearest surface, so you can walk over edges, up walls and along the underside. It is saved with the world, glows cyan, and every time you fly close to such blocks you land on them again. Blocks you place next to an anti-gravity block join it automatically. Shift/8 jumps off. Walking down onto a planet hands you back to planet gravity.
+## Gravity Generator blocks
+Select a Gravity Generator in the hotbar, aim at a placed block and tap 5/Space. That block **and every block connected to it** (touching faces, edges or corners) becomes a Gravity Generator block: you stick to the nearest surface, so you can walk over edges, up walls and along the underside. It is saved with the world, glows cyan, and every time you fly close to such blocks you land on them again. Blocks you place next to a Gravity Generator block join it automatically. Shift/8 jumps off. Walking down onto a planet hands you back to planet gravity.
 
 ## Verdant grass, plants and trees
 On Verdant only, grass tufts sprout here and there. After a while a tuft grows into a plant, and after a while the plant grows into a tree: 50% the usual cone tree, 50% a broad round-crowned tree. Chopping a tree gives **Planks** (2, or 3 from a broad tree). Craft **1 Plank → 3 Wood Blocks** in the Materials tab. Tools and food now cost planks.
@@ -59,8 +59,8 @@ When you die, a short funny line about *how* appears top-left (killed by a preda
 Tap = place block / eat selected food · hold = break blocks, trees, asteroids (or keep eating food) · aimed at a creature = hit it.
 Creature HP: peaceful 8, predators 14. Damage per hit: bare hand 1, pickaxe or axe 2, spear 5 → peaceful dies in 8 / 4 / 2 hits, predators in 14 / 7 / 3. Reach: 6 (spear 8). The target label shows the creature's HP.
 
-## Houses on anti-gravity blocks
-Build with anti-gravity blocks and you can walk inside: the floor you stand on is "sticky", so doorways, corridors and rooms no longer flip your gravity onto the doorframe, walls or ceiling. Walk into a wall to climb it. Interior tips: make rooms at least 2 blocks high (3 is comfortable) and doors 1 block wide x 2 blocks high; you can enter walking from a floor outside the door.
+## Houses on Gravity Generator blocks
+Build with Gravity Generator blocks and you can walk inside: the floor you stand on is "sticky", so doorways, corridors and rooms no longer flip your gravity onto the doorframe, walls or ceiling. Walk into a wall to climb it. Interior tips: make rooms at least 2 blocks high (3 is comfortable) and doors 1 block wide x 2 blocks high; you can enter walking from a floor outside the door.
 
 ## Planet size
 Planets are 5x bigger than before (Verdant radius 1100, Ember 950) and spaced further apart, with more trees and animals to fill them. Flying between them takes about half a minute; the edge of the world is 5200 units from the centre.
@@ -70,7 +70,7 @@ Blocks no longer snap to one world-wide grid. Each structure is its own square g
 - Place a block against another block: it joins that block's grid.
 - Aim at the ground within 16 units of a grid whose up is within ~10 degrees of the ground there: the block joins that grid (and stair-steps down to the ground as the planet curves away).
 - Anywhere else: a new grid starts, and the first block sits flat on the ground.
-- Collision, anti-gravity walking and placement all treat blocks as turned cubes. Saves store each grid's origin and rotation (save format lv 3).
+- Collision, Gravity Generator walking and placement all treat blocks as turned cubes. Saves store each grid's origin and rotation (save format lv 3).
 - Old saves (before grids): the planets moved and grew, so their blocks are returned to your inventory.
 
 ## Atmospheres
