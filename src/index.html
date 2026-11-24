@@ -199,7 +199,8 @@ function vnoise(x,y,z){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z),
 const fbm=(x,y,z)=>vnoise(x,y,z)*.55+vnoise(x*2.1,y*2.1,z*2.1)*.3+vnoise(x*4.3,y*4.3,z*4.3)*.15;
 /* collision spheres [height, radius] along a tree's axis (trunk + two canopy cones), scaled by tree size */
 const TS=[[.5,.6],[1.5,.6],[2.4,.7],[3.2,1.8],[4.4,1.5],[5.6,1.2],[6.8,.8]];
-function treeCS(o,sc){for(let i=0;i<TS.length;i++){o.cs[i].p.copy(o.base).addScaledVector(o.n,TS[i][0]*sc);o.cs[i].r=TS[i][1]*sc}}
+const TSB=[[.6,.6],[1.6,.65],[2.6,.65],[3.4,1.3],[4.4,2.3],[5.6,1.5]]; // broad (oak-like) tree: trunk + round canopy
+function treeCS(o,sc){const ts=o.ts||TS;for(let i=0;i<ts.length;i++){o.cs[i].p.copy(o.base).addScaledVector(o.n,ts[i][0]*sc);o.cs[i].r=ts[i][1]*sc}}
 /* animal collision spheres [height, forward offset, radius] */
 const AS=[[1.1,-.7,1.05],[1.1,.7,1.05],[1.6,1.7,.75]];
 function animalCS(a){for(let i=0;i<AS.length;i++){const c=a.cs[i];c.p.copy(a.base).addScaledVector(a.n,AS[i][0]*a.s).addScaledVector(a.t,AS[i][1]*a.s);c.r=AS[i][2]*a.s}}
@@ -316,7 +317,7 @@ PDEF.forEach(d=>{
    fragmentShader:'uniform vec3 c;uniform vec3 uC;uniform vec3 uS;uniform float uR;uniform float uA;varying vec3 vW;void main(){vec3 rd=normalize(vW-cameraPosition);vec3 oc=uC-cameraPosition;float t=dot(oc,rd);float b=length(oc-rd*t);float x=(b-uR)/uA;float i=x<0.?1.:pow(clamp(1.-x,0.,1.),2.6);vec3 n=normalize(vW-uC);float lit=.3+.7*clamp(dot(n,uS)+.35,0.,1.);gl_FragColor=vec4(c*i*lit*1.15,1.0);}'}));
   am.position.copy(d.c);am.raycast=()=>{};scene.add(am);d.atmoMesh=am}
  makeClouds(d);
- d.animals=[];d.treeList=[];planets.push(d);
+ d.animals=[];d.treeList=[];d.sprouts=[];planets.push(d);
  for(let i=0;i<d.trees;i++){const n=treeSpot(d,true);if(n)makeTree(d,n)}
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
 });
@@ -332,14 +333,59 @@ function treeSpot(d,init){ // finds an empty spot on the planet: not near other 
   if(hitTest(n.clone().multiplyScalar(sr+2).add(d.c),3.4)||hitTest(n.clone().multiplyScalar(sr+6).add(d.c),2.8))continue;
   return n}
  return null}
-function makeTree(d,n,grow){
- const g=new T.Group(),s=rnd(1,1.8),k=Math.random()<.5?0:1;n=n||rndDir();
- const tr=new T.Mesh(new T.CylinderGeometry(.35,.5,3,5),mat(d.trunk));tr.position.y=1.5;g.add(tr);
- cone(g,2.2,4,d.leaf[k],4.5,6);cone(g,1.6,3.2,d.leaf[k],6.6,6);
+function makeTree(d,n,grow,kind){
+ const g=new T.Group(),s=rnd(1,1.8),k=Math.random()<.5?0:1,broad=kind==='broad';n=n||rndDir();
+ if(broad){ // broad, round-crowned tree (not a cone): thick trunk + a lumpy canopy of several blobs
+  const tr=new T.Mesh(new T.CylinderGeometry(.45,.68,3.4,7),mat(d.trunk));tr.position.y=1.7;g.add(tr);
+  [[0,4.6,0,2.5],[1.7,4.0,.6,1.8],[-1.5,4.1,-.9,1.9],[.3,5.8,-.3,1.7],[-.4,4.2,1.7,1.6]].forEach(([x,y,z,r],i)=>{const b=new T.Mesh(new T.IcosahedronGeometry(r,1),mat(d.leaf[(k+(i%2))%2]));b.position.set(x,y,z);g.add(b)})}
+ else{
+  const tr=new T.Mesh(new T.CylinderGeometry(.35,.5,3,5),mat(d.trunk));tr.position.y=1.5;g.add(tr);
+  cone(g,2.2,4,d.leaf[k],4.5,6);cone(g,1.6,3.2,d.leaf[k],6.6,6)}
+ const ts=broad?TSB:TS;
  g.scale.setScalar(grow?.02:s);g.position.copy(n).multiplyScalar(surfR(d,n)-.12).add(d.c);g.quaternion.setFromUnitVectors(UP,n);
- const o={kind:'tree',name:d.name==='Verdant'?'Tree 🌳':'Ember Tree 🔥',time:1.2,pl:d,n,s,gt:0,base:g.position.clone(),cs:TS.map(()=>({p:new T.Vector3(),r:0}))};
+ const o={kind:'tree',type:broad?'broad':'cone',ts,name:d.name==='Verdant'?(broad?'Broad Tree 🌳':'Tree 🌲'):'Ember Tree 🔥',time:broad?1.5:1.2,pl:d,n,s,gt:0,base:g.position.clone(),cs:ts.map(()=>({p:new T.Vector3(),r:0}))};
  treeCS(o,grow?.02:s);reg(g,o);d.treeList.push(o);if(grow)growing.push(o);return o}
+/* ---------- Verdant only: grass sprouts here and there, grows into a plant, then into a tree (50% cone tree, 50% broad tree) ---------- */
+const SPR_MAX=45,SPR_GRASS=[25,50],SPR_PLANT=[30,60];let sprT=2,sprInit=false;
+const bladeG=new T.ConeGeometry(.09,1,3);bladeG.translate(0,.5,0);
+const leafG=new T.SphereGeometry(.5,6,4),stemG=new T.CylinderGeometry(.06,.1,1.3,5);stemG.translate(0,.65,0);
+function sproutMesh(stage){
+ const g=new T.Group();
+ if(stage===0){const cs=[0x4fae55,0x3f9b4a,0x62c25f];for(let i=0;i<8;i++){const a=rnd(0,6.283),r=rnd(0,.4),m=new T.Mesh(bladeG,mat(cs[i%3]));m.position.set(Math.cos(a)*r,0,Math.sin(a)*r);m.scale.set(1,rnd(.6,1.4),1);m.rotation.set(rnd(-.35,.35),0,rnd(-.35,.35));g.add(m)}}
+ else{g.add(new T.Mesh(stemG,mat(0x3d7a34)));
+  for(let i=0;i<6;i++){const a=i*1.047+rnd(-.2,.2),m=new T.Mesh(leafG,mat(i%2?0x2f8a42:0x47b04f));m.scale.set(1.1,.22,.5);m.position.set(Math.cos(a)*.55,.35+i*.17,Math.sin(a)*.55);m.rotation.y=-a;m.rotation.z=.4;g.add(m)}
+  const bud=new T.Mesh(new T.SphereGeometry(.28,6,5),mat(0x7fd36a));bud.position.y=1.4;g.add(bud);g.scale.setScalar(1.15)}
+ return g}
+function putSprout(o){const g=sproutMesh(o.stage);g.position.copy(o.base);g.quaternion.copy(o.q);o.root=g;scene.add(g)}
+function sproutSpot(d){
+ for(let i=0;i<30;i++){
+  let n;if(P.mode==='ground'&&P.pl===d&&Math.random()<.6){const b=cam.position.clone().sub(d.c).normalize(),ax=rndDir();ax.addScaledVector(b,-ax.dot(b)).normalize();n=b.applyAxisAngle(ax,rnd(8,90)/d.Rs)}else n=rndDir();
+  if(wet(d,n))continue;
+  if(d.treeList.some(t=>t.n.dot(n)>Math.cos(3.5/d.Rs)))continue;
+  if(d.sprouts.some(q=>q.n.dot(n)>Math.cos(2.5/d.Rs)))continue;
+  const sr=surfR(d,n),base=n.clone().multiplyScalar(sr).add(d.c);
+  if(base.distanceTo(cam.position)<3)continue;
+  if(hitTest(n.clone().multiplyScalar(sr+1).add(d.c),1.6))continue;
+  return n}
+ return null}
+function addSprout(d,n,stage,t){
+ const base=n.clone().multiplyScalar(surfR(d,n)-.05).add(d.c),o={pl:d,n,base,q:new T.Quaternion().setFromUnitVectors(UP,n),stage,t:t==null?rnd(SPR_GRASS[0],SPR_GRASS[1]):t};
+ putSprout(o);d.sprouts.push(o);return o}
+function sproutTick(dt){
+ const d=planets.find(p=>p.name==='Verdant');if(!d)return;
+ if(!sprInit){sprInit=true;for(let i=0;i<10;i++){const n=sproutSpot(d);if(n)addSprout(d,n,Math.random()<.5?0:1,rnd(5,30))}}
+ sprT-=dt;if(sprT<=0){sprT=rnd(5,12);if(d.sprouts.length<SPR_MAX){const n=sproutSpot(d);if(n)addSprout(d,n,0)}}
+ for(let i=d.sprouts.length-1;i>=0;i--){const o=d.sprouts[i];o.t-=dt;if(o.t>0)continue;
+  if(o.stage===0){scene.remove(o.root);o.stage=1;o.t=rnd(SPR_PLANT[0],SPR_PLANT[1]);putSprout(o);continue}
+  // the plant becomes a tree: 50% cone tree (the existing kind), 50% broad tree
+  const n=o.n,sr=surfR(d,n);
+  if(base_near(o)){o.t=5;continue} // you are standing right there: wait a moment
+  scene.remove(o.root);d.sprouts.splice(i,1);
+  if(d.treeList.some(t=>t.n.dot(n)>Math.cos(3.5/d.Rs))||hitTest(n.clone().multiplyScalar(sr+2).add(d.c),3.4))continue; // no room any more: the plant withers
+  makeTree(d,n,true,Math.random()<.5?'cone':'broad')}}
+const base_near=o=>o.base.distanceTo(cam.position)<6;
 function treeTick(dt){
+ sproutTick(dt);
  for(let i=regrow.length-1;i>=0;i--){const r=regrow[i];r.t-=dt;if(r.t>0)continue;
   const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
  for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));treeCS(o,Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
@@ -512,9 +558,9 @@ function agNearest(p,list,out,up){ // closest point on the surface of any anti-g
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=STICK;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const inv={food:3,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const ITEMS={
- wood:{n:'Wood',img:'wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
+ plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
  food:{n:'Meat',img:'meat',use:{hg:25}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
@@ -522,7 +568,7 @@ const ITEMS={
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 2x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 2x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','stew','bandage','medkit'];
+const ORDER=['food','plank','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -589,6 +635,7 @@ function spinPlanet(d,ang,full){
  const q=_sq.setFromAxisAngle(d.axis,ang),c=d.c;
  d.mesh.quaternion.premultiply(q);d.rq.premultiply(q).normalize();d.cloudU.uRot.value.setFromMatrix4(_sm4.makeRotationFromQuaternion(d.rq));
  for(const o of d.treeList){o.n.applyQuaternion(q);o.base.sub(c).applyQuaternion(q).add(c);o.root.position.copy(o.base);o.root.quaternion.premultiply(q);treeCS(o,o.root.scale.x)}
+ for(const o of d.sprouts){o.n.applyQuaternion(q);o.base.sub(c).applyQuaternion(q).add(c);o.q.premultiply(q);o.root.position.copy(o.base);o.root.quaternion.copy(o.q)}
  for(const a of d.animals){a.n.applyQuaternion(q);a.t.applyQuaternion(q);setBase(a);orient(a);animalCS(a)}
  if(!full)return;
  for(const g of structs.values()){if(g.origin.distanceTo(c)>=d.RA)continue;
@@ -686,6 +733,7 @@ function loadSave(){
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
   }else(d.blocks||[]).forEach(a=>{if(Array.isArray(a)&&BT[a[0]])refund[a[0]]=(refund[a[0]]||0)+1}); // old saves: planets moved and grew, so their blocks come back to the inventory
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
+  if(d.inv&&d.inv.plank===undefined)inv.plank=0; // old saves: their 'wood' count stays as Wood Blocks
   for(const k in refund)inv[k]=(inv[k]||0)+refund[k];
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
@@ -709,16 +757,16 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
 let selSlot=null,dnd=null,lastClk={t:0,i:-1},tab='Tools';
 const RECIPES={
- Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{wood:2,stone:3},d:'Mine asteroids & blocks 2x faster',once:1},{n:'Axe',give:{axe:1},cost:{wood:2,stone:2},d:'Chop trees 2x faster',once:1},{n:'Spear',give:{spear:1},cost:{wood:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
- Materials:[{n:'Hull x2',give:{hull:2},cost:{wood:1,stone:1},d:'Strong blocks for building',img:'hull'}],
- Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,wood:1},d:'+50 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
- Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,wood:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
+ Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 2x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 2x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
+ Materials:[{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
+ Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
+ Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
 function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
  for(let i=0;i<NS;i++){const k=layout[i];if(k&&(!(inv[k]>0)||layout.indexOf(k)!==i))layout[i]=null}
  for(const k of ORDER)if(inv[k]>0&&!layout.includes(k)){let e=layout.indexOf(null,HB);if(e<0)e=layout.indexOf(null);if(e>=0)layout[e]=k}
@@ -891,7 +939,7 @@ function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?
 function finish(o){
  unreg(o);const D={};
  if(o.kind==='block'){blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
- else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}inv.wood+=2;let f=Math.random()<.6?1:0;inv.apple+=f;say('+2 wood'+(f?', +1 apple':''))}
+ else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred||Math.random()<.25){inv.anti++;m+=', +1 Anti-Gravity Core ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }

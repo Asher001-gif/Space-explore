@@ -21,6 +21,9 @@ A full day lasts 4 minutes. Peaceful animals fill the planets by day; predators 
 ## Anti-gravity blocks
 Select an Anti-Gravity Core in the hotbar, aim at a placed block and tap 5/Space. That block **and every block connected to it** (touching faces, edges or corners) becomes anti-gravity: you stick to the nearest surface, so you can walk over edges, up walls and along the underside. It is saved with the world, glows cyan, and every time you fly close to such blocks you land on them again. Blocks you place next to an anti-gravity block join it automatically. Shift/8 jumps off. Walking down onto a planet hands you back to planet gravity.
 
+## Verdant grass, plants and trees
+On Verdant only, grass tufts sprout here and there. After a while a tuft grows into a plant, and after a while the plant grows into a tree: 50% the usual cone tree, 50% a broad round-crowned tree. Chopping a tree gives **Planks** (2, or 3 from a broad tree). Craft **1 Plank → 3 Wood Blocks** in the Materials tab. Tools and food now cost planks.
+
 ## Trees
 Chopped trees grow back after 40-80 seconds on a free spot of the same planet (never on top of blocks, animals, other trees or right next to you).
 
