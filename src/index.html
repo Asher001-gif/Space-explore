@@ -647,17 +647,19 @@ function toggleDoor(dr){
  if(dr.open){ // closing: refuse if you, an animal, a tree or an asteroid is in the doorway
   const busy=[dr.lo.pos,dr.hi.pos].some(p=>cubeBusy(p)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04)));
   if(busy){say('Something is in the way');return}}
- dr.open=!dr.open;dr.lo.open=dr.hi.open=dr.open;say(dr.open?'Door opened':'Door closed');save()}
+ dr.open=!dr.open;dr.lo.open=dr.hi.open=dr.open;agDirty=true;say(dr.open?'Door opened':'Door closed');save()}
+const DOORZ=4.5; // within this distance of an open door: no auto-sticking to anti-gravity blocks, slimmer body, firmer floor grip
+function nearOpenDoor(p,r){for(const dr of doors){if(dr.open&&(dr.lo.pos.distanceToSquared(p)<r*r||dr.hi.pos.distanceToSquared(p)<r*r))return true}return false}
 function doorTick(dt){for(const dr of doors){const tg=dr.open?dr.sw*Math.PI/2:0;if(Math.abs(tg-dr.ang)>.001){dr.ang+=(tg-dr.ang)*Math.min(1,dt*9);dr.pv.forEach(h=>h.rotation.y=dr.ang)}}}
 let agArr=[],agDirty=true;
-const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag);agDirty=false}return agArr};
+const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag&&!o.open);agDirty=false}return agArr};
 function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;o.name=BT[o.type].n+' (anti-gravity)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
 function floodAG(start){let n=0;const q=[start],seen=new Set(q);while(q.length){const o=q.pop();if(markAG(o))n++;for(const m of nbrs(o))if(!seen.has(m)){seen.add(m);q.push(m)}}return n}
 const STICK=1.45; // a surface you already stand on counts this much closer than any other, so doorways, corridors and rooms don't flip your gravity onto the frame / walls / ceiling
-function agNearest(p,list,out,up){ // closest point on the surface of any anti-gravity block (if 'up' is given: the floor you stand on is preferred)
+function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest point on the surface of any anti-gravity block (if 'up' is given: the floor you stand on is preferred)
  let bs=Infinity,bd=Infinity,bx=0,by=0,bz=0;
  for(let i=0;i<list.length;i++){const b=list[i].pos;boxPt(b,p,_k);const x=_k.x,y=_k.y,z=_k.z,dx=p.x-x,dy=p.y-y,dz=p.z-z,d2=dx*dx+dy*dy+dz*dz;
-  let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=STICK;
+  let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=stk;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
 const inv={door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
@@ -836,7 +838,7 @@ function loadSave(){
     const g=structs.get(sid);if(!BT[type]||!g||![i,j,k].every(Number.isInteger)||blocks.has(keyOf(g,i,j,k)))return;
     const pos=cellPos(g,i,j,k);
     if(planets.some(p=>{const v=pos.clone().sub(p.c);return v.length()<p.R-.9})){refund[type]=(refund[type]||0)+1;return}
-    if(type==='door'){if(!blocks.has(keyOf(g,i,j+1,k)))addDoor(g,i,j,k,dax?1:0,dsw===-1?-1:1,!!op);else refund.door=(refund.door||0)+1;return}
+    if(type==='door'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addDoor(g,i,j,k,dax?1:0,dsw===-1?-1:1,!!op);if(ag){markAG(lo);markAG(lo.door.hi)}}else refund.door=(refund.door||0)+1;return}
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
   }else(d.blocks||[]).forEach(a=>{if(Array.isArray(a)&&BT[a[0]])refund[a[0]]=(refund[a[0]]||0)+1}); // old saves: planets moved and grew, so their blocks come back to the inventory
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
@@ -1081,7 +1083,7 @@ const EYE=2.4,_up=new T.Vector3(),_t1=new T.Vector3(),_t2=new T.Vector3(),_v=new
 function sbDist2(p,b){boxPt(b,p,_k);const x=_k.x-p.x,y=_k.y-p.y,z=_k.z-p.z;return x*x+y*y+z*z}
 function hitTest(p,r){for(const o of blocks.values())if(!o.open&&sbDist2(p,o.pos)<r*r)return true;for(const a of asteroids)if(a.pos.distanceTo(p)<a.rad+r)return true;return false}
 function colRes(pos,up,vel,skip){
- const probes=up?[[0,.9],[1.7,.8]]:[[0,1.3]];
+ const probes=up?[[0,.9],[1.7,.8]]:[[0,nearOpenDoor(pos,DOORZ)?.9:1.3]];
  for(let it=0;it<2;it++)for(const[off,r]of probes){
   _p.copy(pos);if(up)_p.addScaledVector(up,-off);
   const push=(nx,ny,nz,amt)=>{_n.set(nx,ny,nz);if(up)_n.addScaledVector(up,-_n.dot(up));const l=_n.length();if(l<1e-4)return;_n.multiplyScalar(1/l);pos.addScaledVector(_n,amt);_p.addScaledVector(_n,amt);if(vel){const vn=vel.dot(_n);if(vn<0)vel.addScaledVector(_n,-vn)}};
@@ -1107,7 +1109,7 @@ function spaceStep(dt){
  cam.position.addScaledVector(P.vel,dt);colRes(cam.position,null,P.vel);
  for(const d of planets){const v=_t1.copy(cam.position).sub(d.c),L=v.length();if(L<=d.R+EYE+.05&&L<=surfR(d,_v.copy(v).divideScalar(L||1))+EYE+.05&&v.dot(P.vel)<=.01){land(d);break}}
  if(P.mode==='space'&&!P.esc&&P.launch<=0)for(const d of planets)if(cam.position.distanceTo(d.c)-d.R<d.cb-8){capture(d);break} // flown down through the clouds: the planet takes hold
- if(P.mode==='space'&&P.launch<=0){const ag=agList();if(ag.length){const dist=agNearest(cam.position,ag,_cp);if(dist<=EYE+.05&&_t1.copy(cam.position).sub(_cp).dot(P.vel)<=.01)land(AGW)}} // fly close to any anti-gravity block and you stick to it, every time
+ if(P.mode==='space'&&P.launch<=0&&!nearOpenDoor(cam.position,DOORZ)){const ag=agList();if(ag.length){const dist=agNearest(cam.position,ag,_cp);if(dist<=EYE+.05&&_t1.copy(cam.position).sub(_cp).dot(P.vel)<=.01)land(AGW)}} // fly close to any anti-gravity block and you stick to it, every time
 }
 function land(d,quiet){
  P.sw=false;P.mode='ground';P.pl=d;P.agT=0;P.hh=0;P.hv=0;P.esc=null;P.fall=false;P.vu.copy(cam.up);P.vsm=true;cam.getWorldDirection(fwd);const up=P.up;
@@ -1199,7 +1201,8 @@ function agGround(dt){
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(AGW.spd);
  pos.addScaledVector(want,dt);colRes(pos,old,null,o=>o.ag);
  const up=_b.copy(old);
- for(let i=0;i<3;i++){const dist=agNearest(pos,ag,_cp,up);
+ const stk=nearOpenDoor(pos,DOORZ)?STICK+.4:STICK;
+ for(let i=0;i<3;i++){const dist=agNearest(pos,ag,_cp,up,stk);
   if(!isFinite(dist)||dist<1e-4||Math.abs(dist-EYE)<2e-3)continue; // already hovering at the right height: keep the current "up" (no flicker at inside corners)
   up.copy(pos).sub(_cp).divideScalar(dist);pos.copy(_cp).addScaledVector(up,EYE)}
  P.agT+=dt;
