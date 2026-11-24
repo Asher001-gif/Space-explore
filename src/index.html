@@ -414,19 +414,20 @@ function makeFishMesh(){
 const splashes=[],splashM=new T.MeshBasicMaterial({color:0xe8f6ff,transparent:true,opacity:.7,side:T.DoubleSide,depthWrite:false}),splashG=new T.RingGeometry(.55,.8,20);
 function addSplash(d,n){let m=splashes.find(q=>!q.on);if(!m){if(splashes.length>=10)return;const me=new T.Mesh(splashG,splashM.clone());me.raycast=()=>{};scene.add(me);m={me,on:0,t:0,d,n:new T.Vector3()};splashes.push(m)}
  m.on=1;m.t=0;m.d=d;m.n.copy(n);m.me.visible=true}
-const FISH_N=34;let fishT=0,fishInit=false,fishRel=2;
+const FISH_N=34;let fishT=0,fishInit=false,fishRel=2,fishSp=4;
 const _fq=new T.Quaternion(),_fv=new T.Vector3(),_fv2=new T.Vector3(),_fx=new T.Vector3();
 function fishSpot(d,near){for(let i=0;i<24;i++){let n;if(near&&P.mode==='ground'&&P.pl===d||near&&P.mode==='space'&&Math.hypot(cam.position.x-d.c.x,cam.position.y-d.c.y,cam.position.z-d.c.z)<d.R+400){const b=cam.position.clone().sub(d.c).normalize(),ax=rndDir();ax.addScaledVector(b,-ax.dot(b)).normalize();n=b.applyAxisAngle(ax,rnd(15,150)/d.R)}else n=rndDir();
   const dep=wDepth(d,n);if(dep>=3.5)return n}return null}
-function spawnFish(d,n){const g=makeFishMesh(),sc=rnd(.42,.7);g.scale.setScalar(sc);scene.add(g);
+function spawnFish(d,n){const g=makeFishMesh(),sc=rnd(.42,.7);g.scale.setScalar(sc);
  const t=rndDir();t.addScaledVector(n,-t.dot(n)).normalize();
  const dep=wDepth(d,n),f={g,n:n.clone(),t,sc,spd:rnd(2.2,4),dp:rnd(1.2,Math.max(1.3,Math.min(6,dep-1))),r:d.wr-1.5,vr:0,air:false,jt:rnd(5,22),ph:rnd(0,6.3),turn:0,tt:rnd(2,6),sp:0};
- f.r=d.wr-f.dp;d.fish.push(f);return f}
+ f.r=d.wr-f.dp;Object.assign(f,{kind:'fish',name:'Fish 🐟',time:.4,pl:d,hp:1,mhp:1,cs:[{p:g.position,r:1.3*sc}]});reg(g,f);d.fish.push(f);return f} // one hit kills it, even bare-handed
 function placeFish(d,f){const bed=surfR(d,f.n);f.g.position.copy(f.n).multiplyScalar(f.r).add(d.c)}
 function fishTick(dt){
  const d=planets.find(p=>p.name==='Verdant');if(!d||!d.water)return;
  if(!fishInit){fishInit=true;for(let i=0;i<FISH_N;i++){const n=fishSpot(d,i<22);if(n)spawnFish(d,n)}}
  fishT+=dt;
+ fishSp-=dt;if(fishSp<=0){fishSp=5;if(d.fish.length<FISH_N){const n=fishSpot(d,true);if(n)spawnFish(d,n)}} // caught fish are replaced after a while
  for(const f of d.fish){
   const bedR=surfR(d,f.n);
   // heading: wander, turn away from shallows
@@ -634,17 +635,17 @@ function agNearest(p,list,out,up){ // closest point on the surface of any anti-g
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=STICK;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={food:3,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const inv={food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const ITEMS={
  plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
- food:{n:'Meat',img:'meat',use:{hg:25}},apple:{n:'Apple',img:'apple',use:{hg:15}},
+ food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
  anti:{n:'Anti-Gravity Core',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5'},
- pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 2x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 2x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
+ pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 3x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 3x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','plank','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','stew','bandage','medkit'];
+const ORDER=['food','fish','plank','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -835,15 +836,15 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
 let selSlot=null,dnd=null,lastClk={t:0,i:-1},tab='Tools';
 const RECIPES={
- Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 2x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 2x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
+ Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 3x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 3x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
  Materials:[{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
- Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
+ Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Cooked Fish (plank)',give:{cfish:1},cost:{fish:1,plank:1},d:'+45 hunger'},{n:'Cooked Fish (wood block)',give:{cfish:1},cost:{fish:1,wood:1},d:'+45 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
  Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
 function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
  for(let i=0;i<NS;i++){const k=layout[i];if(k&&(!(inv[k]>0)||layout.indexOf(k)!==i))layout[i]=null}
@@ -996,7 +997,7 @@ function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>(P.sup||0)+.05)return;P.hv=HO
 let aimObj=null,hitCD=0;
 function actDown(){ // 5 / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
  if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
- const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&aimObj.kind==='animal'){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
+ const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&(aimObj.kind==='animal'||aimObj.kind==='fish')){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
 function actUp(){if(hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}}
 /* melee: bare hand 1 dmg, pickaxe/axe 2, spear 5 (peaceful 8 HP, predators 14 HP) */
 function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
@@ -1013,12 +1014,13 @@ function tap(){ // use whatever is in the selected hotbar slot
  if(k==='anti'){useAnti();return}
  if(BT[k]){if(inv[k]>0)place(k);return}
  const it=ITEMS[k];if(it.use)useItem(k);else say(it.d||it.n)}
-function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?2:1):o.kind==='tree'?(inv.axe>0?2:1):o.kind==='animal'?(inv.spear>0?2.5:1):1}
+function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?1:.3):o.kind==='tree'?(inv.axe>0?1:.3):o.kind==='animal'?(inv.spear>0?2.5:1):1}
 function finish(o){
  unreg(o);const D={};
  if(o.kind==='block'){blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
+ else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);inv.fish++;say('+1 raw fish 🐟')}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred||Math.random()<.25){inv.anti++;m+=', +1 Anti-Gravity Core ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
 /* ---------- atmosphere: clouds -> sky colour, no stars below the clouds, gravity pulls you down ---------- */
@@ -1213,7 +1215,7 @@ function loop(){
   if(hold){const held=performance.now()-hold.t,now=performance.now(),hk=layout[HB+sel];
    if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
     if(held>250&&hk&&ITEMS[hk].use){hold.e=(hold.e||0)+dt/.7;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.e*100)+'%';if(hold.e>=1){hold.e=0;useItem(hk)}}else $('pb').style.display='none'}
-   else if(o&&o.kind==='animal'){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
+   else if(o&&(o.kind==='animal'||o.kind==='fish')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
    else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   $('hp').firstChild.style.width=Math.max(0,P.hp)+'%';$('hg').firstChild.style.width=P.hg+'%';
