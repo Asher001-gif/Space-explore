@@ -44,6 +44,9 @@ Verdant has one deep ocean (about 95 units deep) and a network of small rivers t
 - **Breath:** under water a breath bar drains (30 s); at zero you take damage and can drown. Breath refills at the surface.
 - Your position is saved while swimming too, so you resume in the water where you quit.
 
+## Fish (Verdant)
+Small 3D fish swim in Verdant's ocean and rivers and now and then leap out of the water with a splash. They are built from the cut-out sheet `src/img/skin_fish.png` (head, body, left/right fins, dorsal fin, tail, belly, top, bottom). They are scenery for now (not hittable).
+
 ## Death messages
 When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).
 
