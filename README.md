@@ -49,6 +49,9 @@ Small 3D fish swim in Verdant's ocean and rivers and now and then leap out of th
 
 Bare hands can break blocks, trees and asteroids too, just about 3x slower than with the pickaxe/axe.
 
+## Doors
+Craft a **Door** from 1 plank or 3 wood blocks (Materials tab). Place it in a gap in a wall: it is 1 wide and 2 high (needs 2 free cells above each other, and takes the direction of the wall it sits in). **Tap** (5 / Space / left-click) while aiming at it to open or close it; **hold** to break it (you get the door back). Closed, it is a solid thin panel that neither you nor any creature can pass; open, it swings aside and everything can walk through. You can't close it with something standing in the doorway. Open/closed is saved with the world.
+
 ## Death messages
 When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).
 

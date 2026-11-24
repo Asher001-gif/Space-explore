@@ -462,7 +462,7 @@ function fishTick(dt){
   const nr=m.n;m.me.position.copy(nr).multiplyScalar(m.d.wr+.05).add(m.d.c);_M.makeBasis(_fx.crossVectors(nr,_fv.set(0,1,.01)).normalize(),nr,_fv2.crossVectors(_fx,nr).normalize());m.me.quaternion.setFromRotationMatrix(_M);
   m.me.rotateX(Math.PI/2);m.me.scale.setScalar(1+k*5);m.me.material.opacity=.7*(1-k)}}
 function treeTick(dt){
- sproutTick(dt);fishTick(dt);
+ sproutTick(dt);fishTick(dt);doorTick(dt);
  for(let i=regrow.length-1;i>=0;i--){const r=regrow[i];r.t-=dt;if(r.t>0)continue;
   const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
  for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));treeCS(o,Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
@@ -531,7 +531,7 @@ function animalHit(a){
  const pls=playerSph();
  for(const c of a.cs){
   for(const q of pls){const m=c.r+q.r;if(c.p.distanceToSquared(q.p)<m*m)return 1}
-  for(const o of blocks.values())if(sbDist2(c.p,o.pos)<c.r*c.r)return 2;
+  for(const o of blocks.values())if(!o.open&&sbDist2(c.p,o.pos)<c.r*c.r)return 2;
   for(const k of asteroids){const m=k.rad+c.r;if(k.pos.distanceToSquared(c.p)<m*m)return 2}
  }
  for(const t of a.pl.treeList){const bd=9*t.s+3;if(t.base.distanceToSquared(a.base)>bd*bd)continue;
@@ -553,9 +553,10 @@ for(let i=0;i<200;i++){
 }
 
 /* ---------- blocks / inventory ---------- */
-const BT={wood:{c:0xb5793f,n:'Wood Block'},stone:{c:0x8a8f99,n:'Stone Block'},hull:{c:0x4aa3df,n:'Hull Block'}};
+const BT={wood:{c:0xb5793f,n:'Wood Block'},stone:{c:0x8a8f99,n:'Stone Block'},hull:{c:0x4aa3df,n:'Hull Block'},door:{c:0x9a6a3a,n:'Door'}};
 const bgeo=new T.BoxGeometry(2,2,2),egeo=new T.EdgesGeometry(bgeo),emat=new T.LineBasicMaterial({color:0x000000,transparent:true,opacity:.5});
 const TL=new T.TextureLoader();for(const k in BT){BT[k].m=new T.MeshStandardMaterial({map:TL.load('img/tex_'+k+'.png'),roughness:1})}
+BT.door.m.map.magFilter=BT.door.m.map.minFilter=T.NearestFilter;BT.door.m.map.generateMipmaps=false;
 /* ---------- icons drawn by code (no image files) ---------- */
 const imgSrc=s=>s.startsWith('data:')?s:'img/'+s+'.png';
 function shade(c,f){const o=new T.Color(c).multiplyScalar(f);return '#'+[o.r,o.g,o.b].map(v=>Math.round(Math.min(1,v)*255).toString(16).padStart(2,'0')).join('')}
@@ -618,12 +619,36 @@ function cellPos(s,i,j,k){const p=new T.Vector3(i*2,j*2,k*2).applyQuaternion(s.q
 const _k=new T.Vector3(),_L=new T.Vector3();
 /* closest point of the cube centred at b (turned by b.q if it has one) to the point p */
 function boxPt(b,p,out){
- if(b.iq){_L.copy(p).sub(b).applyQuaternion(b.iq);_L.set(Math.max(-1,Math.min(1,_L.x)),Math.max(-1,Math.min(1,_L.y)),Math.max(-1,Math.min(1,_L.z)));return out.copy(_L).applyQuaternion(b.q).add(b)}
+ if(b.iq){const ex=b.hx||1,ez=b.hz||1;_L.copy(p).sub(b).applyQuaternion(b.iq);_L.set(Math.max(-ex,Math.min(ex,_L.x)),Math.max(-1,Math.min(1,_L.y)),Math.max(-ez,Math.min(ez,_L.z)));return out.copy(_L).applyQuaternion(b.q).add(b)}
  return out.set(Math.max(b.x-1,Math.min(b.x+1,p.x)),Math.max(b.y-1,Math.min(b.y+1,p.y)),Math.max(b.z-1,Math.min(b.z+1,p.z)))}
 function addBlock(type,s,i,j,k){
  const key=keyOf(s,i,j,k),p=cellPos(s,i,j,k);
  const m=new T.Mesh(bgeo,BT[type].m);m.add(new T.LineSegments(egeo,emat));m.position.copy(p);m.quaternion.copy(s.q);
  const o={kind:'block',type,key,name:BT[type].n,time:.5,pos:p,s,c:[i,j,k]};reg(m,o);blocks.set(key,o);return o}
+/* ---------- doors: 1 wide x 2 high (two stacked cells), tap to open / close. Closed = a thin solid panel nothing can walk through (you, animals);
+   open = swung aside and passable. Both halves share one record 'dr'. ---------- */
+const doors=[],doorLoG=new T.BoxGeometry(2,2,.3),doorHiG=new T.BoxGeometry(2,2,.3),doorHit=new T.BoxGeometry(2,2,.5),doorHitM=new T.MeshBasicMaterial({visible:false});
+[[doorLoG,0],[doorHiG,.5]].forEach(([g,o])=>{const uv=g.attributes.uv;for(let f=4;f<6;f++)for(let i=0;i<4;i++){const k=f*4+i;uv.setY(k,uv.getY(k)*.5+o)}});
+function doorOrient(s,i,j,k){ // which way the panel runs: along the wall it sits in, else across the way you face
+ const x=blocks.has(keyOf(s,i-1,j,k))||blocks.has(keyOf(s,i+1,j,k)),z=blocks.has(keyOf(s,i,j,k-1))||blocks.has(keyOf(s,i,j,k+1));
+ let ax;if(x&&!z)ax=0;else if(z&&!x)ax=1;else{const f=fwd.clone().applyQuaternion(s.iq);ax=Math.abs(f.z)>Math.abs(f.x)?0:1}
+ const side=ax?blocks.has(keyOf(s,i-1,j,k)):blocks.has(keyOf(s,i,j,k-1));
+ return{ax,sw:side?-1:1}}
+function addDoor(s,i,j,k,ax,sw,open){
+ const dr={ax,sw,open:!!open,ang:open?sw*Math.PI/2:0,pv:[]};
+ const half=(top)=>{const jj=top?j+1:j,key=keyOf(s,i,jj,k),p=cellPos(s,i,jj,k);p.hx=ax?.2:1;p.hz=ax?1:.2;
+  const root=new T.Group(),inner=new T.Group(),hinge=new T.Group();inner.rotation.y=ax?Math.PI/2:0;root.add(inner);hinge.position.x=-1;inner.add(hinge);
+  const panel=new T.Mesh(top?doorHiG:doorLoG,BT.door.m);panel.position.x=1;hinge.add(panel);
+  inner.add(new T.Mesh(doorHit,doorHitM)); // invisible hit-box: you can aim at the doorway even when the door is swung open
+  root.position.copy(p);root.quaternion.copy(s.q);hinge.rotation.y=dr.ang;dr.pv.push(hinge);
+  const o={kind:'block',type:'door',key,name:'Door',time:.6,pos:p,s,c:[i,jj,k],door:dr,top,open:dr.open};reg(root,o);blocks.set(key,o);return o};
+ dr.lo=half(false);dr.hi=half(true);doors.push(dr);return dr.lo}
+function toggleDoor(dr){
+ if(dr.open){ // closing: refuse if you, an animal, a tree or an asteroid is in the doorway
+  const busy=[dr.lo.pos,dr.hi.pos].some(p=>cubeBusy(p)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04)));
+  if(busy){say('Something is in the way');return}}
+ dr.open=!dr.open;dr.lo.open=dr.hi.open=dr.open;say(dr.open?'Door opened':'Door closed');save()}
+function doorTick(dt){for(const dr of doors){const tg=dr.open?dr.sw*Math.PI/2:0;if(Math.abs(tg-dr.ang)>.001){dr.ang+=(tg-dr.ang)*Math.min(1,dt*9);dr.pv.forEach(h=>h.rotation.y=dr.ang)}}}
 let agArr=[],agDirty=true;
 const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag);agDirty=false}return agArr};
 function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;o.name=BT[o.type].n+' (anti-gravity)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
@@ -635,9 +660,9 @@ function agNearest(p,list,out,up){ // closest point on the surface of any anti-g
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=STICK;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const inv={door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const ITEMS={
- plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
+ door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
  food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
@@ -645,7 +670,7 @@ const ITEMS={
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 3x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 3x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','fish','plank','wood','stone','hull','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
+const ORDER=['food','fish','plank','wood','stone','hull','door','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -663,7 +688,7 @@ function place(type){
  for(const d of planets){ray.far=16;ray.set(cam.position,fwd);const hh=ray.intersectObject(d.mesh,false)[0];if(hh&&hh.distance<tp&&hh.distance<16){tp=hh.distance;pc=d;pn=hh.point.clone().sub(d.c).normalize()}}
  let s,i=0,j=0,k=0,fresh=false;
  if(bh&&bh.distance<=tp){ // against a block you aim at: same grid, next cell over
-  const o=bh.object.userData.o,n=bh.face.normal;s=o.s;i=o.c[0]+Math.round(n.x);j=o.c[1]+Math.round(n.y);k=o.c[2]+Math.round(n.z)}
+  const o=bh.object.userData.o,n=o.door?bh.face.normal.clone().transformDirection(bh.object.matrixWorld).applyQuaternion(o.s.iq):bh.face.normal;s=o.s;i=o.c[0]+Math.round(n.x);j=o.c[1]+Math.round(n.y);k=o.c[2]+Math.round(n.z)}
  else{
   const ref=cam.position.clone().addScaledVector(fwd,pc?tp-.05:7); // the air just in front of the ground you aim at
   let best=null,bd=256; // join a grid if a block of it is within 16 units and its 'up' is still within ~10 degrees of the ground here
@@ -677,10 +702,12 @@ function place(type){
   if(pc&&!fresh)for(let n=0;n<4;n++){const v=cellPos(s,i,j,k).sub(pc.c);if(v.length()>=surfR(pc,v)-.5)break;j++} // cell mostly buried: lift it one cell along the grid's up
  }
  const p=cellPos(s,i,j,k),key=keyOf(s,i,j,k);
+ let dax=0,dsw=1;if(type==='door'){const q=doorOrient(s,i,j,k);dax=q.ax;dsw=q.sw;p.hx=dax?.2:1;p.hz=dax?1:.2}
  // only refuse a cell that would really overlap you: test your actual collision spheres (head/body + feet on the ground, one bigger sphere in space) with a hair of clearance, so a block right next to you is allowed but never traps you
  if(blocks.has(key)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04))||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
+ if(type==='door'){const p2=cellPos(s,i,j+1,k);p2.hx=p.hx;p2.hz=p.hz;if(blocks.has(keyOf(s,i,j+1,k))||playerSph().some(q=>sbDist2(q.p,p2)<(q.r+.04)*(q.r+.04))||cubeBusy(p2)){say('A door needs a free spot 2 blocks high');return}}
  if(!s.id)regStruct(s);
- const o=addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
+ const o=type==='door'?addDoor(s,i,j,k,dax,dsw,false):addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
 /* ---------- player ---------- */
 const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0,hh:0,hv:0,esc:null,escT:0,escUp:new T.Vector3(0,1,0),fall:false,vu:new T.Vector3(0,1,0),vsm:false,sw:false,swY:0,sv:0,air:100};
@@ -793,7 +820,7 @@ function posSnap(){ // exact spot, view and mode, so the game resumes right wher
 }
 function save(){
  try{
-  const b=[],ss=new Map();blocks.forEach(o=>{ss.set(o.s.id,o.s);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0])});
+  const b=[],ss=new Map();blocks.forEach(o=>{if(o.top)return;ss.set(o.s.id,o.s);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
   const S=[...ss.values()].map(g=>[g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w]);
   localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:3,structs:S,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()}));
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
@@ -805,10 +832,11 @@ function loadSave(){
   const refund={};
   if(d.lv>=3){
    (d.structs||[]).forEach(a=>{if(Array.isArray(a)&&a.length===8&&a.every(Number.isFinite)&&a[0]>0)regStruct(mkStruct(new T.Vector3(a[1],a[2],a[3]),new T.Quaternion(a[4],a[5],a[6],a[7]),a[0]))});
-   (d.blocks||[]).forEach(([type,sid,i,j,k,ag])=>{
+   (d.blocks||[]).forEach(([type,sid,i,j,k,ag,op,dax,dsw])=>{
     const g=structs.get(sid);if(!BT[type]||!g||![i,j,k].every(Number.isInteger)||blocks.has(keyOf(g,i,j,k)))return;
     const pos=cellPos(g,i,j,k);
     if(planets.some(p=>{const v=pos.clone().sub(p.c);return v.length()<p.R-.9})){refund[type]=(refund[type]||0)+1;return}
+    if(type==='door'){if(!blocks.has(keyOf(g,i,j+1,k)))addDoor(g,i,j,k,dax?1:0,dsw===-1?-1:1,!!op);else refund.door=(refund.door||0)+1;return}
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
   }else(d.blocks||[]).forEach(a=>{if(Array.isArray(a)&&BT[a[0]])refund[a[0]]=(refund[a[0]]||0)+1}); // old saves: planets moved and grew, so their blocks come back to the inventory
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
@@ -836,14 +864,14 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
 let selSlot=null,dnd=null,lastClk={t:0,i:-1},tab='Tools';
 const RECIPES={
  Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 3x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 3x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
- Materials:[{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
+ Materials:[{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Door (1 plank)',give:{door:1},cost:{plank:1},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Door (3 wood blocks)',give:{door:1},cost:{wood:3},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
  Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Cooked Fish (plank)',give:{cfish:1},cost:{fish:1,plank:1},d:'+45 hunger'},{n:'Cooked Fish (wood block)',give:{cfish:1},cost:{fish:1,wood:1},d:'+45 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
  Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
 function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
@@ -1009,15 +1037,16 @@ function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
  else if(o.n&&!o.dying){ // knock the creature back a little, away from the player
   const away=cam.position.clone().sub(o.root.position);away.addScaledVector(o.n,-away.dot(o.n));
   if(away.lengthSq()>1e-6){o.kd=away.normalize().negate();o.kb=KB_TIME;o.hop=KB_TIME}}}
-function tap(){ // use whatever is in the selected hotbar slot
+function tap(){ // use whatever is in the selected hotbar slot; aimed at a door within reach = open / close it
+ if(aimObj&&aimObj.door&&aimObj.pos.distanceTo(cam.position)<7){toggleDoor(aimObj.door);return}
  const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
- if(BT[k]){if(inv[k]>0)place(k);return}
+ if(BT[k]){if(inv[k]>0)place(k);return} // (the door item is a BT entry too)
  const it=ITEMS[k];if(it.use)useItem(k);else say(it.d||it.n)}
 function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?1:.3):o.kind==='tree'?(inv.axe>0?1:.3):o.kind==='animal'?(inv.spear>0?2.5:1):1}
 function finish(o){
  unreg(o);const D={};
- if(o.kind==='block'){blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
+ if(o.kind==='block'){if(o.door){const dr=o.door,oth=dr.lo===o?dr.hi:dr.lo;unreg(oth);blocks.delete(oth.key);const di=doors.indexOf(dr);if(di>=0)doors.splice(di,1)}blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);inv.fish++;say('+1 raw fish 🐟')}
@@ -1050,13 +1079,13 @@ function atmoUpdate(){
 /* ---------- movement, gravity, collisions ---------- */
 const EYE=2.4,_up=new T.Vector3(),_t1=new T.Vector3(),_t2=new T.Vector3(),_v=new T.Vector3(),_p=new T.Vector3(),_n=new T.Vector3();
 function sbDist2(p,b){boxPt(b,p,_k);const x=_k.x-p.x,y=_k.y-p.y,z=_k.z-p.z;return x*x+y*y+z*z}
-function hitTest(p,r){for(const o of blocks.values())if(sbDist2(p,o.pos)<r*r)return true;for(const a of asteroids)if(a.pos.distanceTo(p)<a.rad+r)return true;return false}
+function hitTest(p,r){for(const o of blocks.values())if(!o.open&&sbDist2(p,o.pos)<r*r)return true;for(const a of asteroids)if(a.pos.distanceTo(p)<a.rad+r)return true;return false}
 function colRes(pos,up,vel,skip){
  const probes=up?[[0,.9],[1.7,.8]]:[[0,1.3]];
  for(let it=0;it<2;it++)for(const[off,r]of probes){
   _p.copy(pos);if(up)_p.addScaledVector(up,-off);
   const push=(nx,ny,nz,amt)=>{_n.set(nx,ny,nz);if(up)_n.addScaledVector(up,-_n.dot(up));const l=_n.length();if(l<1e-4)return;_n.multiplyScalar(1/l);pos.addScaledVector(_n,amt);_p.addScaledVector(_n,amt);if(vel){const vn=vel.dot(_n);if(vn<0)vel.addScaledVector(_n,-vn)}};
-  for(const o of blocks.values()){if(skip&&skip(o))continue;const b=o.pos;if(b.distanceToSquared(_p)>(r+1.75)*(r+1.75))continue;boxPt(b,_p,_k);const dx=_p.x-_k.x,dy=_p.y-_k.y,dz=_p.z-_k.z,d2=dx*dx+dy*dy+dz*dz;
+  for(const o of blocks.values()){if(o.open||skip&&skip(o))continue;const b=o.pos;if(b.distanceToSquared(_p)>(r+1.75)*(r+1.75))continue;boxPt(b,_p,_k);const dx=_p.x-_k.x,dy=_p.y-_k.y,dz=_p.z-_k.z,d2=dx*dx+dy*dy+dz*dz;
    if(d2<r*r){const d=Math.sqrt(d2);if(d>1e-5)push(dx/d,dy/d,dz/d,r-d);else push(up?up.x:0,up?up.y:1,up?up.z:0,r)}}
   for(const a of asteroids){const dx=_p.x-a.pos.x,dy=_p.y-a.pos.y,dz=_p.z-a.pos.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=a.rad+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)}
   const sph=(c)=>{const dx=_p.x-c.p.x,dy=_p.y-c.p.y,dz=_p.z-c.p.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=c.r+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)};
@@ -1102,9 +1131,9 @@ function aim(up){
    and the underside of the lowest block above your head = ceiling. Blocks beside you are walls (colRes). */
 function supportAt(d,pos,up,hh){
  let f=0,c=1e9;const sr=surfR(d,up);
- for(const o of blocks.values()){const b=o.pos;if(b.distanceToSquared(pos)>81)continue;
+ for(const o of blocks.values()){const b=o.pos;if(o.open||b.distanceToSquared(pos)>81)continue;
   if(o.s.up.dot(up)<.8)continue;
-  _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>1.5||Math.abs(_L.z)>1.5)continue; // you are over / under this block
+  _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>(b.hx||1)+.5||Math.abs(_L.z)>(b.hz||1)+.5)continue; // you are over / under this block
   const ht=_t2.copy(b).addScaledVector(o.s.up,1).sub(d.c).dot(up)-sr,hb=ht-2;
   if(ht<=hh+.45){if(ht>f)f=ht}else if(hb>=hh-.05&&hb<c)c=hb}
  return[f,c]}
