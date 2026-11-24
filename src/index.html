@@ -555,11 +555,17 @@ function useAnti(){
  say(cnt>0?'Anti-gravity on for '+cnt+' connected block'+(cnt>1?'s':'')+' ✨ Walk anywhere on them · Space / 8 to jump off':'Already anti-gravity — walk on it · Space / 8 to jump off')}
 /* ---------- save / load (localStorage) ---------- */
 const SAVE_KEY='spaceExplore.save.v1';
+let savedPos=null; // where you were when you last quit (read by loadSave, applied by restorePos once everything is built)
+function posSnap(){ // exact spot, view and mode, so the game resumes right where you left off (a death re-saves deep space)
+ const v=a=>[a.x,a.y,a.z],o={m:P.mode,p:v(cam.position),up:v(P.up),hd:v(P.hd),pitch:P.pitch,yaw:P.yaw,hh:P.hh,fall:P.fall?1:0};
+ if(P.mode==='ground'&&P.pl)o.pl=P.pl.ag?'AG':planets.indexOf(P.pl);
+ return o;
+}
 function save(){
  try{
   const b=[],ss=new Map();blocks.forEach(o=>{ss.set(o.s.id,o.s);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0])});
   const S=[...ss.values()].map(g=>[g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w]);
-  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:3,structs:S,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,lay:layout}));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:3,structs:S,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,lay:layout,pos:posSnap()}));
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
 }
 function loadSave(){
@@ -580,6 +586,7 @@ function loadSave(){
   if(Number.isFinite(d.hp)&&d.hp>0)P.hp=Math.min(100,d.hp);
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
   if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin()}
+  if(d.pos&&Array.isArray(d.pos.p)&&d.pos.p.length===3&&d.pos.p.every(Number.isFinite))savedPos=d.pos;
   if(d.lv>=2&&Array.isArray(d.lay)&&(d.lay.length===36||d.lay.length===NS))d.lay.forEach((k,i)=>{const j=d.lay.length===36&&i>=27?i+(BP-27):i;layout[j]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
  }catch(e){/* corrupt save - ignore and start fresh */}
 }
@@ -949,5 +956,36 @@ function loop(){
  stepGlitter(dt);SKY.position.copy(cam.position);
  ren.render(scene,cam);
 }
+/* ---------- resume where you left off (death is the only thing that sends you to deep space) ---------- */
+function restorePos(){
+ const q=savedPos;savedPos=null;if(!q)return;
+ const V=a=>Array.isArray(a)&&a.length===3&&a.every(Number.isFinite)?new T.Vector3(a[0],a[1],a[2]):null;
+ const p=V(q.p);if(!p||p.distanceTo(SUN)<SUN_R*1.15||p.length()>SUN_DIST+SUN_R*1.6)return; // bad data or inside the sun: keep the default start
+ const pitch=Number.isFinite(q.pitch)?Math.max(-1.5,Math.min(1.5,q.pitch)):0;
+ let up=null,pl=null;
+ if(q.m==='ground'){
+  if(q.pl==='AG'){
+   const ag=agList();
+   if(ag.length){const dist=agNearest(p,ag,_cp);if(isFinite(dist)&&dist<=EYE+3){pl=AGW;up=V(q.up);if(up&&up.lengthSq()>1e-6)up.normalize();else if(dist>1e-4)up=p.clone().sub(_cp).divideScalar(dist);else up=new T.Vector3(0,1,0)}}
+  }else{
+   const d=planets[q.pl];
+   if(d){const L=p.distanceTo(d.c);if(L>d.R*.5&&L<d.RA+5){pl=d;up=p.clone().sub(d.c).normalize()}}
+  }
+ }
+ cam.position.copy(p);P.vel.set(0,0,0);P.launch=0;P.esc=null;P.escT=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;
+ if(pl){
+  P.mode='ground';P.pl=pl;P.agT=0;P.up.copy(up);P.vu.copy(up);cam.up.copy(up);P.pitch=pitch;
+  const hd=V(q.hd)||new T.Vector3(0,0,1);hd.addScaledVector(up,-hd.dot(up));
+  if(hd.lengthSq()<.01){hd.set(0,0,1).addScaledVector(up,-up.z);if(hd.lengthSq()<.01)hd.set(1,0,0).addScaledVector(up,-up.x)}
+  P.hd.copy(hd.normalize());
+  if(!pl.ag){P.hh=Math.max(0,Math.min(400,Number.isFinite(q.hh)?q.hh:0));P.fall=!!q.fall&&P.hh>0}else P.hh=0;
+  say('Welcome back — resuming on '+pl.name);
+ }else{ // you quit in deep space (or the spot is no longer valid): resume in free flight at the same place and view
+  P.mode='space';P.pl=null;P.hh=0;cam.up.set(0,1,0);
+  P.yaw=Number.isFinite(q.yaw)?q.yaw:-1.09;P.pitch=pitch;
+  say('Welcome back — resuming in deep space');
+ }
+}
+restorePos();
 gameReady=true;loop();
 </script></body></html>
