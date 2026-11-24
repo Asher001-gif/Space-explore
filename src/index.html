@@ -554,8 +554,8 @@ function place(type){
   if(pc&&!fresh)for(let n=0;n<4;n++){const v=cellPos(s,i,j,k).sub(pc.c);if(v.length()>=surfR(pc,v)-.5)break;j++} // cell mostly buried: lift it one cell along the grid's up
  }
  const p=cellPos(s,i,j,k),key=keyOf(s,i,j,k);
- const feet=P.mode==='ground'?cam.position.clone().addScaledVector(P.up,-1.7):null;
- if(blocks.has(key)||sbDist2(cam.position,p)<2.25||(feet&&sbDist2(feet,p)<1.44)||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
+ // only refuse a cell that would really overlap you: test your actual collision spheres (head/body + feet on the ground, one bigger sphere in space) with a hair of clearance, so a block right next to you is allowed but never traps you
+ if(blocks.has(key)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04))||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
  if(!s.id)regStruct(s);
  const o=addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
