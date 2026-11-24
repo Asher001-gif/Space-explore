@@ -33,6 +33,14 @@ Everything is solid: you, animals/predators, trees, blocks and asteroids all col
 ## Skins & icons
 Creatures use pixel-art skin sheets (`src/img/skin_*.png`, green screen removed): dark blue = predators (both planets), blue-white = peaceful animals on Verdant, autumn = peaceful animals on Ember. Each animal is built from the sheet's head, body, four legs and tail. Pickaxe, axe and spear inventory icons are `src/img/pickaxe.png`, `axe.png`, `spear.png`.
 
+## Water (Verdant only)
+Verdant has one deep ocean (about 95 units deep) and a network of small rivers that branch, join each other and flow into the ocean. The layout is a fixed seeded height-field (`buildWater`), so it is identical every session; terrain, walking, trees and creatures all read the same field. The sea surface is a smooth sphere that catches the sun's glint.
+
+- **Creatures and trees never enter water.**
+- **Wading** (head above water) works like walking, just slower. When your head goes under you are **swimming**: you slowly sink unless you **hold Space / jump**, which lifts you to the surface; **arrow keys / WASD** swim sideways. Hold Space is *rise* in water, it never launches you into space there.
+- **Breath:** under water a breath bar drains (30 s); at zero you take damage and can drown. Breath refills at the surface.
+- Your position is saved while swimming too, so you resume in the water where you quit.
+
 ## Death messages
 When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).
 

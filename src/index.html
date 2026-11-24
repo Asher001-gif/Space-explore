@@ -10,7 +10,8 @@ canvas{display:block;position:fixed;inset:0;touch-action:none}
 #stats{left:12px;top:max(12px,env(safe-area-inset-top));width:220px}
 .bar{height:12px;border:1px solid var(--line);background:var(--panel);margin:4px 0;border-radius:6px;overflow:hidden}
 .bar i{display:block;height:100%;width:100%}
-#hp i{background:var(--bad)}#hg i{background:var(--food)}
+#hp i{background:var(--bad)}#hg i{background:var(--food)}#ox i{background:#5ac8ff}
+#uw{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(40,140,200,.22),rgba(8,50,100,.6))}
 #loc{margin-top:6px;opacity:.85}
 #cross{left:50%;top:50%;width:18px;height:18px;margin:-9px;border:2px solid #fff;border-radius:50%;opacity:.6}
 #tgt{left:50%;top:calc(50% + 28px);transform:translateX(-50%);text-align:center;min-width:160px}
@@ -82,7 +83,8 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 #bJump{right:calc(max(18px,env(safe-area-inset-right)) + min(88px,22vh) + 10px);bottom:calc(var(--sl) + 24px + env(safe-area-inset-bottom));width:min(64px,16vh);height:min(64px,16vh)}
 #bInv{right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));width:46px;height:46px;font-size:22px}
 </style></head><body>
-<div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="loc"></div></div>
+<div id="uw"></div>
+<div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="oxw" style="display:none"><div>🫧 Breath</div><div class="bar" id="ox"><i></i></div></div><div id="loc"></div></div>
 <div id="cross" class="hud"></div><div id="jb" class="hud"><i></i></div>
 <div id="tgt" class="hud"><div id="tn"></div><div id="pb"><i></i></div></div>
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
@@ -91,7 +93,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop an Anti-Gravity Core : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -131,7 +133,65 @@ const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
 const _M=new T.Matrix4(),_r=new T.Vector3();
 var gameReady=false;
 /* radius of the (smooth, high-detail) planet at any direction: the mesh is a finely tessellated sphere, so this is exact to ~5 cm and costs nothing */
-function surfR(d,n){return d.R-.05}
+function surfR(d,n){return d.water?d.R-.05-wDepth(d,n):d.R-.05}
+/* ---------- water (Verdant): one deep ocean + small rivers that branch, join each other and end in the ocean ----------
+   The layout is a fixed, seeded height-field kept in the planet's own (unrotated) frame, so the same lakebed is always in the same place.
+   depth = how far the ground dips below the normal land level; the water surface sits SEA below land level. Terrain mesh, walking and animals all read this one field. */
+const SEA=1.5,WGW=2048,WGH=1024,OCEAN_D=95;
+const _wq=new T.Quaternion(),_wv=new T.Vector3();
+function wSample(w,x,y,z){ // bilinear lookup of the depth grid for a unit direction in the planet's local frame
+ const lat=Math.asin(y<-1?-1:y>1?1:y),lon=Math.atan2(z,x);
+ let u=(lon+Math.PI)/(2*Math.PI)*WGW,v=(lat+Math.PI/2)/Math.PI*(WGH-1);
+ const i0=Math.floor(u),j0=Math.min(WGH-2,Math.floor(v)),fu=u-i0,fv=v-j0,i1=(i0+1)%WGW,ia=((i0%WGW)+WGW)%WGW;
+ const g=w.g,a=g[j0*WGW+ia],b=g[j0*WGW+i1],c=g[(j0+1)*WGW+ia],e=g[(j0+1)*WGW+i1];
+ return (a+(b-a)*fu)*(1-fv)+(c+(e-c)*fu)*fv}
+function wDepth(d,n){_wq.copy(d.rq).conjugate();_wv.copy(n).applyQuaternion(_wq);return wSample(d.water,_wv.x,_wv.y,_wv.z)}
+const wet=(d,n)=>d.water&&wDepth(d,n)>.02; // wet (or shore slope): trees and creatures stay away
+function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function buildWater(d){
+ const R=d.R,rg=mulberry32(7312),rr=(a,b)=>a+rg()*(b-a),g=new Float32Array(WGW*WGH),V=(x,y,z)=>new T.Vector3(x,y,z);
+ const ss=t=>{t=t<0?0:t>1?1:t;return t*t*(3-2*t)};
+ const oc=V(rr(-1,1),rr(-.4,.4),rr(-1,1)).normalize(),waves=[];
+ for(let i=0;i<7;i++)waves.push({k:rndUnit(rg).multiplyScalar(rr(1.6,5.2)),ph:rr(0,6.28),a:rr(.035,.085)});
+ const radAt=(x,y,z)=>{let r=1;for(const w of waves)r+=w.a*Math.sin(w.k.x*x+w.k.y*y+w.k.z*z+w.ph);return Math.max(.45,Math.min(1.6,r))}; // coast radius (rad) around the ocean centre
+ const oceanAt=(x,y,z)=>(radAt(x,y,z)-Math.acos(Math.max(-1,Math.min(1,x*oc.x+y*oc.y+z*oc.z))))*R; // >0 = inside the ocean (units from the coast)
+ for(let j=0;j<WGH;j++){const lat=-Math.PI/2+j/(WGH-1)*Math.PI,cy=Math.sin(lat),cl=Math.cos(lat);
+  for(let i=0;i<WGW;i++){const lon=-Math.PI+i/WGW*2*Math.PI,x=cl*Math.cos(lon),z=cl*Math.sin(lon);
+   const os=oceanAt(x,cy,z);g[j*WGW+i]=os>0?OCEAN_D*ss(os/300):0}}
+ /* rivers: meandering walks over the sphere. They start in the ocean near the coast and run inland; tributaries branch off and join them. */
+ const STEP=24,rivers=[];
+ const walk=(p0,h0,steps,w0,w1)=>{const pts=[],p=p0.clone(),h=h0.clone();let turn=0;
+  for(let s=0;s<=steps;s++){pts.push({p:p.clone(),w:w0+(w1-w0)*s/steps});
+   turn+=(rg()-.5)*.34;turn*=.9;turn=Math.max(-.5,Math.min(.5,turn));
+   h.applyAxisAngle(p,turn);const ax=new T.Vector3().crossVectors(p,h).normalize();
+   p.applyAxisAngle(ax,STEP/R);h.applyAxisAngle(ax,STEP/R);h.addScaledVector(p,-h.dot(p)).normalize()}
+  rivers.push(pts);return pts};
+ const tangentAt=pts=>i=>{const a=pts[Math.max(0,i-1)].p,b=pts[Math.min(pts.length-1,i+1)].p,t=b.clone().sub(a),p=pts[i].p;return t.addScaledVector(p,-t.dot(p)).normalize()};
+ const branch=(pts,count,minS,maxS,wk,depthLeft)=>{for(let k=0;k<count;k++){
+   const i=Math.floor(rr(6,pts.length-5)),tg=tangentAt(pts)(i),sgn=rg()<.5?-1:1,h=tg.clone().applyAxisAngle(pts[i].p,sgn*rr(.6,1.2));
+   const sub=walk(pts[i].p,h,Math.floor(rr(minS,maxS)),pts[i].w*wk,Math.max(4,pts[i].w*wk*.5));
+   if(depthLeft>0)branch(sub,1+Math.floor(rg()*2),10,18,.9,depthLeft-1)}};
+ let made=0,guard=0;
+ while(made<8&&guard++<4000){const q=rndUnit(rg),os=oceanAt(q.x,q.y,q.z);if(os<-5||os>40)continue; // a point just inside the coast
+  const away=q.clone().addScaledVector(oc,-q.dot(oc));if(away.lengthSq()<1e-4)continue;away.normalize();
+  const h=away.applyAxisAngle(q,rr(-.8,.8)),main=walk(q,h,Math.floor(rr(55,78)),12,6.5);
+  branch(main,3+Math.floor(rg()*3),20,36,.7,1);made++}
+ // stamp every river segment into the grid
+ const toIdx=(lat,lon)=>[((Math.round((lon+Math.PI)/(2*Math.PI)*WGW)%WGW)+WGW)%WGW,(lat+Math.PI/2)/Math.PI*(WGH-1)];
+ for(const pts of rivers)for(let s=0;s<pts.length-1;s++){
+  const A=pts[s],B=pts[s+1],ab=B.p.clone().sub(A.p),ab2=ab.lengthSq();if(ab2<1e-12)continue;
+  const mid=A.p.clone().add(B.p.clone()).normalize(),reach=Math.max(A.w,B.w)*1.7+4,rho=(STEP/2+reach)/R;
+  const mlat=Math.asin(mid.y),mlon=Math.atan2(mid.z,mid.x);
+  const j0=Math.max(0,Math.floor((mlat-rho+Math.PI/2)/Math.PI*(WGH-1))),j1=Math.min(WGH-1,Math.ceil((mlat+rho+Math.PI/2)/Math.PI*(WGH-1)));
+  const cmin=Math.cos(Math.min(Math.PI/2,Math.abs(mlat)+rho));let di=cmin<.03?WGW/2:Math.ceil(rho/cmin/(2*Math.PI)*WGW)+1;di=Math.min(di,WGW/2);
+  const ic=Math.round((mlon+Math.PI)/(2*Math.PI)*WGW);
+  for(let j=j0;j<=j1;j++){const lat=-Math.PI/2+j/(WGH-1)*Math.PI,cy=Math.sin(lat),cl=Math.cos(lat);
+   for(let di2=-di;di2<=di;di2++){const ia=((ic+di2)%WGW+WGW)%WGW,lon=-Math.PI+ia/WGW*2*Math.PI,x=cl*Math.cos(lon),z=cl*Math.sin(lon);
+    const t=Math.max(0,Math.min(1,((x-A.p.x)*ab.x+(cy-A.p.y)*ab.y+(z-A.p.z)*ab.z)/ab2)),cx=A.p.x+ab.x*t-x,cyy=A.p.y+ab.y*t-cy,cz=A.p.z+ab.z*t-z;
+    const dist=Math.sqrt(cx*cx+cyy*cyy+cz*cz)*R,w=A.w+(B.w-A.w)*t,k=1-dist/(w*1.7);if(k<=0)continue;
+    const dep=(3.4+w*.3)*ss(k),idx=j*WGW+ia;if(dep>g[idx])g[idx]=dep}}}
+ d.wr=d.R-.05-SEA;return{g}}
+function rndUnit(rg){let x,y,z,l;do{x=rg()*2-1;y=rg()*2-1;z=rg()*2-1;l=x*x+y*y+z*z}while(l>1||l<.01);l=Math.sqrt(l);return new T.Vector3(x/l,y/l,z/l)}
 /* smooth 3D value noise -> soft colour patches on the planets (no per-triangle colours) */
 const _h=(x,y,z)=>{let h=Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453;return h-Math.floor(h)};
 function vnoise(x,y,z){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z),fx=x-ix,fy=y-iy,fz=z-iz,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),w=fz*fz*(3-2*fz),L=(a,b,t)=>a+(b-a)*t;
@@ -171,6 +231,8 @@ function skinModel(k,s){const S=SKIN[k],g=new T.Group(),m=skinMat(k),H=S.head,B=
  g.userData.legs=legs;g.userData.head=head;g.userData.tail=tail;
  return g}
 function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
+const cl01=x=>x<0?0:x>1?1:x,sm=(a,b,x)=>{const t=cl01((x-a)/(b-a));return t*t*(3-2*t)};
+const WSAND=new T.Color(0xd9c78a),WSHAL=new T.Color(0x2c8ea3),WDEEP=new T.Color(0x0a2c4b);
 const DAY_V=1200,DAY_E=1500,OLD_DAY_V=240,OLD_DAY_E=300; // seconds per full day/night cycle (old saves used 240/300)
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
@@ -200,14 +262,27 @@ function makeClouds(d){
   fragmentShader:'uniform vec3 uCol;uniform vec3 uSh;uniform vec3 uSun;uniform float uDay;uniform float uOp;uniform float uFd;varying vec2 vU;varying float vF;varying float vH;varying float vS;varying float vD;varying vec3 vN;void main(){vec2 c1=vec2(cos(vS*40.),sin(vS*23.))*.42;vec2 c2=vec2(cos(vS*31.+2.),sin(vS*47.+1.))*.46;float r0=length(vU),r1=length(vU-c1)/.7,r2=length(vU-c2)/.62;float a=max(exp(-3.4*r0*r0),max(exp(-3.4*r1*r1),exp(-3.4*r2*r2)));a=a*(1.-smoothstep(.8,1.,r0));if(a<.02)discard;float fg=1.-exp(-uFd*uFd*vD*vD);float lit=clamp(dot(vN,uSun)*.55+.55,0.,1.)*(.62+.38*vH);vec3 col=mix(uSh,uCol,lit)*(.2+.8*uDay);gl_FragColor=vec4(col,a*uOp*vF*(1.-fg));}'}));
  m.frustumCulled=false;m.raycast=()=>{};scene.add(m);d.cloudU=U}
 PDEF.forEach(d=>{
- d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,70); // ~100k triangles (same facet size as the old 220-radius planet), smooth normals (vertices sit exactly on the sphere)
- const P3=g.attributes.position,seed=rnd(0,100),pal=d.cols.map(c=>new T.Color(c)),col=new Float32Array(P3.count*3),tc=new T.Color();
+ if(d.name==='Verdant')d.water=buildWater(d);
+ d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,d.water?(COARSE?95:125):70); // ~100k triangles (same facet size as the old 220-radius planet), smooth normals (vertices sit exactly on the sphere)
+ const P3=g.attributes.position,NR=g.attributes.normal,seed=rnd(0,100),pal=d.cols.map(c=>new T.Color(c)),col=new Float32Array(P3.count*3),tc=new T.Color();
  for(let i=0;i<P3.count;i++){const x=P3.getX(i)/d.R,y=P3.getY(i)/d.R,z=P3.getZ(i)/d.R;
   let t=fbm(x*2.4+seed,y*2.4+seed,z*2.4+seed);t=Math.max(0,Math.min(1,(t-.22)/.56)); // spread the noise over the whole palette
   const f=t*(pal.length-1),k=Math.min(pal.length-2,Math.floor(f)),q=f-k,e=q*q*(3-2*q);
-  tc.copy(pal[k]).lerp(pal[k+1],e).offsetHSL(0,0,(vnoise(x*14+seed,y*14,z*14)-.5)*.07);col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b}
- g.setAttribute('color',new T.BufferAttribute(col,3));
+  tc.copy(pal[k]).lerp(pal[k+1],e).offsetHSL(0,0,(vnoise(x*14+seed,y*14,z*14)-.5)*.07);
+  if(d.water){const dep=wSample(d.water,x,y,z);
+   if(dep>.0005){ // lakebed / riverbed: wet sand on the bank, then sand -> teal -> deep blue
+    if(dep<1.6)tc.lerp(WSAND,sm(0,.7,dep));else if(dep<7)tc.copy(WSAND).lerp(WSHAL,sm(1.6,7,dep));else tc.copy(WSHAL).lerp(WDEEP,sm(7,45,dep));
+    const r=d.R-dep;P3.setXYZ(i,x*r,y*r,z*r);
+    let ex=-z,ez=x;const el=Math.hypot(ex,ez);if(el>1e-3){ex/=el;ez/=el}else{ex=1;ez=0}
+    const fx=y*ez,fy=z*ex-x*ez,fz=-y*ex,E=3/d.R; // e2 = n x e1
+    const s1=(wSample(d.water,x+ex*E,y,z+ez*E)-wSample(d.water,x-ex*E,y,z-ez*E))/6,s2=(wSample(d.water,x+fx*E,y+fy*E,z+fz*E)-wSample(d.water,x-fx*E,y-fy*E,z-fz*E))/6;
+    let nx=x+s1*ex+s2*fx,ny=y+s2*fy,nz=z+s1*ez+s2*fz;const nl=Math.hypot(nx,ny,nz)||1;NR.setXYZ(i,nx/nl,ny/nl,nz/nl)}}
+  col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b}
+ g.setAttribute('color',new T.BufferAttribute(col,3));if(d.water){P3.needsUpdate=true;NR.needsUpdate=true}
  const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,flatShading:false,roughness:.95,metalness:0}));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
+ if(d.water){ // the sea surface: a smooth sphere that catches the sun's glint
+  const wm=new T.Mesh(new T.IcosahedronGeometry(d.wr,60),new T.MeshPhongMaterial({color:0x1d77b0,emissive:0x03101c,specular:0x6f93b3,shininess:55,transparent:true,opacity:.8,side:T.DoubleSide}));
+  wm.position.copy(d.c);wm.raycast=()=>{};scene.add(wm);d.waterMesh=wm}
  { // thick atmosphere seen from space: a soft halo that fades from the planet's edge out to the top of the atmosphere (hidden once you are inside it)
   const sd=SUN.clone().sub(d.c).normalize();
   const am=new T.Mesh(new T.SphereGeometry(d.RA,64,40),new T.ShaderMaterial({transparent:true,side:T.BackSide,blending:T.AdditiveBlending,depthWrite:false,
@@ -223,6 +298,7 @@ PDEF.forEach(d=>{
 function treeSpot(d,init){ // finds an empty spot on the planet: not near other trees, animals, blocks or the player
  for(let i=0;i<40;i++){
   const n=rndDir();
+  if(wet(d,n))continue;
   if(d.treeList.some(t=>t.n.dot(n)>Math.cos(4.5/d.Rs)))continue;
   if(init)return n;
   const sr=surfR(d,n),base=n.clone().multiplyScalar(sr).add(d.c);
@@ -247,6 +323,7 @@ function spawnDir(d,nightPred){let n;for(let i=0;i<40;i++){n=rndDir();
  if(nightPred){const b=cam.position.clone().sub(d.c).normalize(),ax=rndDir();ax.addScaledVector(b,-ax.dot(b)).normalize();n=b.clone().applyAxisAngle(ax,rnd(45,220)/d.Rs); // somewhere 45-220 units from you...
   if(dayOf(sunElev(n.clone().multiplyScalar(d.Rs).add(d.c),d))>.3)continue} // ...but only on the dark side
 
+ if(wet(d,n))continue;
  if(n.clone().multiplyScalar(d.Rs).add(d.c).distanceTo(cam.position)<=35)continue;
  if(d.treeList.some(t=>t.n.dot(n)>Math.cos(3/d.Rs)))continue;
  if(d.animals.some(a=>a.n.dot(n)>Math.cos(4/d.Rs)))continue;
@@ -302,6 +379,7 @@ function stepAnimal(a,dt){
 }
 /* what an animal's body is touching: 1 = the player, 2 = block / asteroid / tree / another animal, 0 = free */
 function animalHit(a){
+ if(wet(a.pl,a.n))return 2; // creatures never enter water
  const pls=playerSph();
  for(const c of a.cs){
   for(const q of pls){const m=c.r+q.r;if(c.p.distanceToSquared(q.p)<m*m)return 1}
@@ -457,7 +535,7 @@ function place(type){
  const o=addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
 /* ---------- player ---------- */
-const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0,hh:0,hv:0,esc:null,escT:0,escUp:new T.Vector3(0,1,0),fall:false,vu:new T.Vector3(0,1,0),vsm:false};
+const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0,hh:0,hv:0,esc:null,escT:0,escUp:new T.Vector3(0,1,0),fall:false,vu:new T.Vector3(0,1,0),vsm:false,sw:false,swY:0,sv:0,air:100};
 cam.position.copy(START);
 const PS=[{p:new T.Vector3(),r:.9},{p:new T.Vector3(),r:.8}];
 function playerSph(){PS[0].p.copy(cam.position);if(P.mode==='ground'){PS[0].r=.9;PS[1].p.copy(cam.position).addScaledVector(P.up,-1.7);return PS}PS[0].r=1.3;return[PS[0]]}
@@ -558,7 +636,7 @@ function useAnti(){
 const SAVE_KEY='spaceExplore.save.v1';
 let savedPos=null; // where you were when you last quit (read by loadSave, applied by restorePos once everything is built)
 function posSnap(){ // exact spot, view and mode, so the game resumes right where you left off (a death re-saves deep space)
- const v=a=>[a.x,a.y,a.z],o={m:P.mode,p:v(cam.position),up:v(P.up),hd:v(P.hd),pitch:P.pitch,yaw:P.yaw,hh:P.hh,fall:P.fall?1:0};
+ const v=a=>[a.x,a.y,a.z],o={m:P.mode,p:v(cam.position),up:v(P.up),hd:v(P.hd),pitch:P.pitch,yaw:P.yaw,hh:P.hh,fall:P.fall?1:0,sw:P.sw?1:0};
  if(P.mode==='ground'&&P.pl)o.pl=P.pl.ag?'AG':planets.indexOf(P.pl);
  return o;
 }
@@ -600,12 +678,13 @@ const keys={};
 function say(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,2200)}
 function hurt(x,why,by){P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
 const DEATHS={
+ drown:['You forgot to come up for air. 🫧','Glub glub. The ocean wins.','You tried to breathe water. It did not go well.','Hold Space to rise next time! 🌊'],
  pred:['You tried to help a {n}. It helped itself to you.','You tried to pet a {n}. It had other plans.','Plot twist: you were the snack. 🍖','The {n} says thanks for the meal.'],
  hunger:['You skipped lunch. Forever. 🍎','Food was RIGHT there. You just… didn’t.','Your stomach filed a complaint. Fatal.','Died of hunger. Apples exist, you know.'],
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{food:3,apple:0,wood:4,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
@@ -720,7 +799,7 @@ addEventListener('mouseup',e=>{if(e.button===0)actUp()});
 const JUMPK=['Space','Digit8','Numpad8'],HOLD_T=.6,HOPV=15,HOPG=34,ESC_V=75;let jh=null;
 const inAtmo=()=>{for(const d of planets)if(cam.position.distanceTo(d.c)-d.R<d.ah)return d;return null};
 function jumpDown(k){if(P.mode!=='ground'||jh)return;if(P.pl.ag&&!inAtmo()){leave();return}jh={t:0,done:false,k}}
-function jumpUp(){const j=jh;jh=null;$('jb').style.display='none';if(!j||j.done||!active||ui||P.mode!=='ground')return;if(P.pl.ag)say('Hold Space / 8 to launch into space');else hop()}
+function jumpUp(){const j=jh;jh=null;$('jb').style.display='none';if(!j||j.done||!active||ui||P.mode!=='ground'||P.sw)return;if(P.pl.ag)say('Hold Space / 8 to launch into space');else hop()}
 addEventListener('blur',()=>{jh=null;$('jb').style.display='none'});
 /* ---------- touch controls: left stick = move, drag the screen = look, buttons = act / jump / inventory, tap a hotbar slot to select ---------- */
 let touchOn=false;
@@ -793,7 +872,6 @@ function finish(o){
 }
 /* ---------- atmosphere: clouds -> sky colour, no stars below the clouds, gravity pulls you down ---------- */
 const ATM={d:null,alt:0,skyT:0,wo:0},SPACE=new T.Color(0x03040a),HL0=new T.Color(0x9fb4ff),_ca=new T.Color(),_cb=new T.Color(),_cc=new T.Color(),_cd=new T.Color(),DARKC=new T.Color(0x1a2030),DUSK=new T.Color(0xff7a3c);
-const cl01=x=>x<0?0:x>1?1:x,sm=(a,b,x)=>{const t=cl01((x-a)/(b-a));return t*t*(3-2*t)};
 function atmoUpdate(){
  let best=null,ba=1e9;
  for(const d of planets){const alt=cam.position.distanceTo(d.c)-d.R;if(alt<d.ah&&alt<ba){ba=alt;best=d}}
@@ -850,7 +928,7 @@ function spaceStep(dt){
  if(P.mode==='space'&&P.launch<=0){const ag=agList();if(ag.length){const dist=agNearest(cam.position,ag,_cp);if(dist<=EYE+.05&&_t1.copy(cam.position).sub(_cp).dot(P.vel)<=.01)land(AGW)}} // fly close to any anti-gravity block and you stick to it, every time
 }
 function land(d,quiet){
- P.mode='ground';P.pl=d;P.agT=0;P.hh=0;P.hv=0;P.esc=null;P.fall=false;P.vu.copy(cam.up);P.vsm=true;cam.getWorldDirection(fwd);const up=P.up;
+ P.sw=false;P.mode='ground';P.pl=d;P.agT=0;P.hh=0;P.hv=0;P.esc=null;P.fall=false;P.vu.copy(cam.up);P.vsm=true;cam.getWorldDirection(fwd);const up=P.up;
  if(d.ag){const dist=agNearest(cam.position,agList(),_cp);up.set(0,1,0);if(dist>1e-4&&isFinite(dist))up.copy(cam.position).sub(_cp).divideScalar(dist)}
  else up.copy(cam.position).sub(d.c).normalize();
  P.pitch=Math.max(-1.5,Math.min(1.5,Math.asin(Math.max(-1,Math.min(1,fwd.dot(up))))));
@@ -877,17 +955,54 @@ function supportAt(d,pos,up,hh){
   const ht=_t2.copy(b).addScaledVector(o.s.up,1).sub(d.c).dot(up)-sr,hb=ht-2;
   if(ht<=hh+.45){if(ht>f)f=ht}else if(hb>=hh-.05&&hb<c)c=hb}
  return[f,c]}
+const RISE_V=4.2,SINK_V=2.6,SWIM_V=6.5,AIR_T=30;
+function enterWater(d,gr){
+ P.sw=true;P.swY=gr+EYE+P.hh-d.wr;P.sv=Math.max(-7,Math.min(0,P.hv*.35));P.hv=0;P.fall=false;P.vsm=false;
+ say('💦 In the water! Hold Space to rise · arrow keys / WASD to swim')}
+function swimStep(dt,d){ // in water: you sink unless you hold jump; arrow keys swim sideways; head under water uses up your breath
+ let up=P.up.copy(cam.position).sub(d.c).normalize();
+ P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
+ const rise=!!(jh||keys.Space||keys.Digit8||keys.Numpad8);
+ P.sv+=((rise?RISE_V:-SINK_V)-P.sv)*(1-Math.exp(-3*dt));P.swY+=P.sv*dt;
+ const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(SWIM_V);
+ cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
+ up=P.up.copy(cam.position).sub(d.c).normalize();
+ const gr=surfR(d,up),floor=gr+EYE-d.wr,top=.35+Math.sin(performance.now()/450)*.07; // floor = eye height (above the water) when standing on the bed
+ if(P.swY>top){P.swY=top;if(P.sv>0)P.sv=0}
+ if(P.swY<floor){P.swY=floor;if(P.sv<0)P.sv=0}
+ if(P.swY<=floor+.05&&floor>=.6){ // the bed rose under you until your head is clear of the water: walk out
+  P.sw=false;P.hh=Math.max(0,P.swY-floor);P.hv=0;P.sv=0;jh=null;$('jb').style.display='none'}
+ cam.position.copy(d.c).addScaledVector(up,d.wr+P.swY);
+ P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up)}
+function breathTick(dt){
+ const under=P.mode==='ground'&&P.sw&&P.swY<0;
+ if(under){P.air=Math.max(0,P.air-100/AIR_T*dt);if(P.air<=0)hurt(8*dt,'drown')}else P.air=Math.min(100,P.air+60*dt);
+ $('oxw').style.display=P.air<99.5?'block':'none';$('ox').firstChild.style.width=P.air+'%'}
+let uwK=0;
+function uwUpdate(dt){ // underwater look: blue fog, darker with depth
+ const d=P.pl,sub=P.mode==='ground'&&d&&d.water?d.wr-cam.position.distanceTo(d.c):0;
+ uwK+=((sub>0?1:0)-uwK)*Math.min(1,dt*10);
+ if(uwK>.01){const lum=(.18+.82*sm(.05,.6,dayA))*Math.exp(-Math.max(0,sub)/70);
+  _cc.setHex(0x1a78a8).multiplyScalar(lum);
+  scene.fog.color.lerp(_cc,uwK);scene.fog.density+=(.016+.012*cl01(sub/60)-scene.fog.density)*uwK;
+  SKY.material.uniforms.top.value.lerp(_cc,uwK);SKY.material.uniforms.hor.value.lerp(_cc,uwK)}
+ $('uw').style.opacity=uwK*.55}
 function groundStep(dt){
  const d=P.pl;if(d.ag){agGround(dt);return}
+ if(d.water&&P.sw){swimStep(dt,d);return}
  const[sf,sc]=supportAt(d,cam.position,P.up,P.hh);P.sup=sf; // P.hh = height of your feet above the planet surface; sf = height of the floor under you (0 = bare ground, 2 = on top of a block)
  if(P.fall){const vd=Math.min(55,3+.55*P.hh);P.hv+=(-vd-P.hv)*(1-Math.exp(-1.8*dt));P.hh+=P.hv*dt;if(P.hh<=sf){P.hh=sf;P.hv=0;P.fall=false;say('Touched down on '+d.name)}}
  else if(P.hh>sf+1e-3||P.hv>0){P.hv-=HOPG*dt;P.hh+=P.hv*dt;
   if(P.hv>0&&P.hh+EYE+.3>sc){P.hv=0;P.hh=Math.max(sf,sc-EYE-.3)} // bumped your head on a block above
   if(P.hh<=sf&&P.hv<=0){P.hh=sf;P.hv=0}} // landed (on the ground or on top of a block)
  else if(P.hh<sf)P.hh=Math.min(sf,P.hh+Math.max(6,(sf-P.hh)*10)*dt); // a block was put under you: lift smoothly
+ let slow=1;
+ if(d.water){const u0=_up.copy(cam.position).sub(d.c).normalize(),gr=surfR(d,u0),Dw=d.wr-gr;
+  if(Dw>.05&&gr+EYE+P.hh-d.wr<0){enterWater(d,gr);swimStep(dt,d);return} // your head went under: you are swimming
+  if(Dw>.15)slow=1-.4*cl01(Dw/1.6)} // wading is slower
  const up=P.up.copy(cam.position).sub(d.c).normalize();
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
- const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar(d.spd||11);
+ const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar((d.spd||11)*slow);
  cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
  up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE+P.hh,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(P.hh>0?1:1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up);
@@ -917,7 +1032,7 @@ function agGround(dt){
 function leave(){ // off the ground and away: through the clouds into free space (or just off an anti-gravity block)
  if(P.mode!=='ground')return;cam.getWorldDirection(fwd);const up=_a.copy(P.up),pl=P.pl,A=inAtmo();
  P.yaw=Math.atan2(-fwd.x,-fwd.z);P.pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y)));
- P.vel.copy(up).multiplyScalar(36);P.launch=1.3;P.mode='space';P.pl=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;$('jb').style.display='none';
+ P.vel.copy(up).multiplyScalar(36);P.launch=1.3;P.mode='space';P.pl=null;P.sw=false;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;$('jb').style.display='none';
  if(A){P.esc=A;P.escT=0;P.escUp.copy(up);say('🚀 Launching from '+A.name+' — up through the clouds!')}else say('Released from gravity — free flight!');
 }
 /* ---------- loop ---------- */
@@ -927,11 +1042,11 @@ function loop(){
  if(active&&!ui){
   if(P.mode==='ground')groundStep(dt);else spaceStep(dt);
   cam.getWorldDirection(fwd);
-  atmoUpdate();
+  atmoUpdate();uwUpdate(dt);breathTick(dt);
   planets.forEach(d=>{d.atmoMesh.visible=!ATM.d&&cam.position.distanceTo(d.c)>d.RA});
-  if(jh&&!jh.done){if(P.mode!=='ground'){jh=null;$('jb').style.display='none'}else{jh.t+=dt;if(jh.t>.12){$('jb').style.display='block';$('jb').firstChild.style.width=Math.min(100,jh.t/HOLD_T*100)+'%'}if(jh.t>=HOLD_T){jh.done=true;leave()}}}
+  if(jh&&!jh.done){if(P.mode!=='ground'){jh=null;$('jb').style.display='none'}else if(P.sw){jh.t=0;$('jb').style.display='none'}else{jh.t+=dt;if(jh.t>.12){$('jb').style.display='block';$('jb').firstChild.style.width=Math.min(100,jh.t/HOLD_T*100)+'%'}if(jh.t>=HOLD_T){jh.done=true;leave()}}}
   const tf=(P.esc?90:75)+fovAdd;if(Math.abs(cam.fov-tf)>.05){cam.fov+=(tf-cam.fov)*Math.min(1,5*dt);cam.updateProjectionMatrix()}
-  let loc=P.mode==='ground'?(P.fall?'Descending to '+P.pl.name+' · gravity':'On '+P.pl.name+(P.pl.ag?'  ·  hold Space / 8 = launch':'  ·  tap Space / 8 = hop, hold = launch')):'Deep space';
+  let loc=P.mode==='ground'?(P.sw?'Swimming in '+P.pl.name+' · hold Space = rise · arrows = swim':P.fall?'Descending to '+P.pl.name+' · gravity':'On '+P.pl.name+(P.pl.ag?'  ·  hold Space / 8 = launch':'  ·  tap Space / 8 = hop, hold = launch')):'Deep space';
   if(P.mode==='space'){planets.forEach(d=>{if(cam.position.distanceTo(d.c)<d.RA+300)loc='Near '+d.name});
    if(ATM.d){const A=ATM,d=A.d;loc=P.esc?'Launching from '+d.name:A.alt>d.ct?'Entering '+d.name+"'s atmosphere":'Inside the clouds of '+d.name}}
   STARS.position.copy(cam.position);SKY.position.copy(cam.position);
@@ -979,7 +1094,11 @@ function restorePos(){
   const hd=V(q.hd)||new T.Vector3(0,0,1);hd.addScaledVector(up,-hd.dot(up));
   if(hd.lengthSq()<.01){hd.set(0,0,1).addScaledVector(up,-up.z);if(hd.lengthSq()<.01)hd.set(1,0,0).addScaledVector(up,-up.x)}
   P.hd.copy(hd.normalize());
-  if(!pl.ag){P.hh=Math.max(0,Math.min(400,Number.isFinite(q.hh)?q.hh:0));P.fall=!!q.fall&&P.hh>0}else P.hh=0;
+  if(!pl.ag){const L=p.distanceTo(pl.c),gr=surfR(pl,up),Dw=pl.water?pl.wr-gr:0;
+   P.hh=Math.max(0,Math.min(400,L-gr-EYE)); // height above the ground as it is now (the ground may differ from when this was saved)
+   P.fall=!!q.fall&&P.hh>0;P.sw=false;P.air=100;
+   if(Dw>.05&&(q.sw||gr+EYE+P.hh-pl.wr<0)){P.sw=true;P.swY=Math.max(gr+EYE-pl.wr,Math.min(.35,L-pl.wr));P.sv=0;P.hh=0;P.fall=false}
+  }else P.hh=0;
   say('Welcome back — resuming on '+pl.name);
  }else{ // you quit in deep space (or the spot is no longer valid): resume in free flight at the same place and view
   P.mode='space';P.pl=null;P.hh=0;cam.up.set(0,1,0);
