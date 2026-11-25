@@ -18,6 +18,7 @@ canvas{display:block;position:fixed;inset:0;touch-action:none}
 #jb{left:50%;top:calc(50% + 66px);transform:translateX(-50%);width:150px;height:8px;border:1px solid var(--line);background:var(--panel);border-radius:4px;overflow:hidden;display:none}#jb i{display:block;height:100%;width:0;background:#9fd0ff}
 #eb{height:8px;width:120px;margin:4px auto 0;border:1px solid var(--line);background:rgba(0,0,0,.45);border-radius:4px;overflow:hidden;display:none}#eb i{display:block;height:100%;width:100%;background:var(--bad)}
 #sf{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:7;display:flex;align-items:center;justify-content:center;color:#9fb4ff;font:700 30px sans-serif;letter-spacing:6px}
+#rp{left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + var(--sl) + 52px);transform:translateX(-50%);display:none;pointer-events:auto;cursor:pointer;padding:8px 16px;background:var(--panel);color:#fff;border:2px solid #e0b070;border-radius:10px;font:700 15px sans-serif;white-space:nowrap}#rp b{background:#e0b070;color:#222;border-radius:5px;padding:1px 6px;margin-left:4px}
 #pb{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px;overflow:hidden;display:none}#pb i{display:block;height:100%;width:0;background:var(--good)}
 #hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px}
 .slot{width:var(--sl);height:var(--sl);border:2px solid var(--line);background:var(--panel);border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center}
@@ -88,7 +89,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <div id="uw"></div>
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="oxw" style="display:none"><div>🫧 Breath</div><div class="bar" id="ox"><i></i></div></div><div id="loc"></div></div>
 <div id="cross" class="hud"></div><div id="jb" class="hud"><i></i></div>
-<div id="sf"></div>
+<div id="sf"></div><button id="rp" class="hud"></button>
 <div id="tgt" class="hud"><div id="tn"></div><div id="eb"><i></i></div><div id="pb"><i></i></div></div>
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
@@ -96,7 +97,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near any animal and press <b>Shift</b> (or the button) to tie it as a pet — it follows you. Go too far, or keep pulling while it is stuck, and the rope snaps. Shift again lets it go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -653,6 +654,7 @@ function stepAnimal(a,dt){
  const pl=a.pl;a.cd-=dt;a.block-=dt;const toP=cam.position.clone().sub(a.root.position),dist=toP.length();let sp=a.speed;
  const tan=()=>toP.clone().addScaledVector(a.n,-toP.dot(a.n)).normalize();
  if(a.block>0){sp*=.7}
+ else if(a.pet){if(dist>6){a.t.copy(tan());sp*=dist>12?2.2:1.3;a.idle=0}else{sp=0;a.idle=1}} // a pet on a rope: follows you, then stands by
  else if(a.pred&&dist<55&&P.alive){a.t.copy(tan());sp*=1.5;if(dist<5.4&&a.cd<=0){hurt(12,'pred',a.name);a.cd=.9}}
  else if(!a.pred&&dist<14){a.t.copy(tan()).negate();sp*=1.8}
  else{a.turn-=dt;if(a.turn<=0){a.turn=rnd(2,6);a.tw=rnd(-1,1)*.8;if(Math.random()<.45)a.idle=rnd(2,4.5)}a.t.applyAxisAngle(a.n,a.tw*dt);a.idle-=dt;sp=a.idle>0?0:sp*.5}
@@ -839,6 +841,7 @@ function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest 
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
 const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const pets=[]; // animals tied with a rope (see petTick)
 const ITEMS={
  door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},tube:{n:'Sleeping Tube',img:'tube',d:'Place it (2 blocks high), then tap it to sleep. Sleep at night and you wake at day'},leather:{n:'Leather',img:'leather',d:'Dropped by night predators and chasm snakes'},rope:{n:'Rope',img:'rope',d:'Twisted from 2 leather'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
  food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},
@@ -955,7 +958,7 @@ function spawnTick(dt){
   const nh=night&&d===here; // predators only come out where it is night around you
   const cap={peace:nh?Math.round(d.peace*.3):d.peace,pred:nh?d.pred:0};
   for(const pred of[false,true]){
-   const list=d.animals.filter(x=>x.pred===pred),c=pred?cap.pred:cap.peace;
+   const list=d.animals.filter(x=>x.pred===pred&&!x.pet),c=pred?cap.pred:cap.peace;
    if(pred&&nh){const bad=list.find(x=>dayOf(sunElev(x.root.position,d))>.55);if(bad)retire(bad)} // a predator that wandered into daylight burns off
    if(list.length<c)makeAnimal(d,pred,nh);
    else if(list.length>c){
@@ -1010,7 +1013,7 @@ function save(){
   if(_bc.v!==blocksVer){const b=[],ids=new Set();blocks.forEach(o=>{if(o.top)return;ids.add(o.s.id);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
    _bc={v:blocksVer,s:JSON.stringify(b),ids:[...ids]}}
   const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
-  const rest=JSON.stringify({inv:inv,hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
+  const rest=JSON.stringify({inv:Object.assign({},inv,{rope:inv.rope+pets.length}),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
   const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+','+rest.slice(1);
   if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
@@ -1057,7 +1060,7 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
@@ -1160,7 +1163,10 @@ addEventListener('keydown',e=>{
  else if(c==='BracketRight')sel=(sel+1)%9;
  else if(JUMPK.includes(c))jumpDown(c);
  else if(c==='Digit5')actDown();
+ else if(c==='ShiftLeft'||c==='ShiftRight')ropeAction();
 });
+for(const ev of['mousedown','mouseup','touchstart'])$('rp').addEventListener(ev,e=>e.stopPropagation(),{passive:true});
+$('rp').addEventListener('pointerdown',e=>{e.preventDefault();ropeAction()});
 addEventListener('wheel',e=>{if(!active||ui)return;sel=(sel+(e.deltaY>0?1:8))%9},{passive:true});
 addEventListener('keyup',e=>{keys[e.code]=false;
  if(jh&&e.code===jh.k)jumpUp();
@@ -1245,7 +1251,7 @@ function finish(o){
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else if(o.kind==='snake'){despawnSnake(o);inv.food+=3;inv.leather++;say('+3 meat, +1 leather')}
  else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);inv.fish++;say('+1 raw fish 🐟')}
- else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred){if(Math.random()<.7){inv.leather++;m+=', +1 leather'}else{inv.anti++;m+=', +1 Gravity Generator ✨'}}else if(Math.random()<.25){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
+ else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred){if(Math.random()<.7){inv.leather++;m+=', +1 leather'}else{inv.anti++;m+=', +1 Gravity Generator ✨'}}else if(Math.random()<.25){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m);if(o.pet)dropPet(o,true);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
 /* ---------- atmosphere: clouds -> sky colour, no stars below the clouds, gravity pulls you down ---------- */
 const ATM={d:null,alt:0,skyT:0,wo:0},SPACE=new T.Color(0x03040a),HL0=new T.Color(0x9fb4ff),_ca=new T.Color(),_cb=new T.Color(),_cc=new T.Color(),_cd=new T.Color(),DARKC=new T.Color(0x1a2030),DUSK=new T.Color(0xff7a3c);
@@ -1452,6 +1458,47 @@ function sleepTick(dt){
  if(SL.ph==='in'){SL.t+=dt/1.2;f.style.opacity=Math.min(1,SL.t);if(SL.t>=1){SL.ph='dark';SL.t=0;f.textContent='Zzz…';skipToDay()}}
  else if(SL.ph==='dark'){SL.t+=dt;if(SL.t>=1.3){SL.ph='out';SL.t=0;f.textContent=''}}
  else{SL.t+=dt/1.6;f.style.opacity=Math.max(0,1-SL.t);if(SL.t>=1){SL.on=false;SL.ph='';SL.cd=performance.now()+SLEEP_CD;say('☀ You wake up rested')}}}
+/* ---------- pets: select a Rope, get close to any animal (predator or peaceful), press Shift (or the button) to tie it. It follows you on the rope.
+   Go too far, or keep pulling while it is stuck behind something, and the rope strains and then SNAPS (the rope is lost, the creature goes free).
+   Shift again (or the button) lets it go and gives the rope back. One rope per creature. ---------- */
+const RP_NEAR=10,RP_SOFT=16,RP_HARD=45,RP_SNAP=3,RP_N=7;
+const ropeGeo=new T.CylinderGeometry(.07,.07,1,5),_rh=new T.Vector3(),_rn=new T.Vector3(),_rp=[],_rd=new T.Vector3(),_ry=new T.Vector3(0,1,0),_rc=new T.Color(0xc8964f),_rr=new T.Color(0xff3b2a);
+for(let i=0;i<=RP_N;i++)_rp.push(new T.Vector3());
+const ropeSel=()=>layout[HB+sel]==='rope'&&inv.rope>0;
+function ropeCand(){let best=null,bd=RP_NEAR;for(const d of planets)for(const a of d.animals){if(a.pet||a.dying)continue;const g=a.root.position.distanceTo(cam.position);if(g<bd){bd=g;best=a}}return best}
+const petName=a=>a.name.replace(/[^\x20-\x7E]/g,'').trim();
+function nearestPet(){let best=null,bd=1e9;for(const a of pets){const g=a.root.position.distanceTo(cam.position);if(g<bd){bd=g;best=a}}return best}
+function tiePet(a){if(a.pet||inv.rope<1)return;inv.rope--;a.pet=true;a.strain=0;a.warnT=0;
+ const g=new T.Group(),mt=new T.MeshStandardMaterial({color:0xc8964f,roughness:1});
+ for(let i=0;i<RP_N;i++){const m=new T.Mesh(ropeGeo,mt);m.raycast=()=>{};g.add(m)}
+ scene.add(g);a.rope=g;a.ropeMat=mt;pets.push(a);say('🪢 Tied the '+petName(a)+' — keep it close or the rope may snap');save()}
+function dropPet(a,refund){const i=pets.indexOf(a);if(i>=0)pets.splice(i,1);a.pet=false;if(a.rope){scene.remove(a.rope);a.ropeMat.dispose();a.rope=null}if(refund)inv.rope++}
+function ropeAction(){
+ if(SL.on||!P.alive||ui||!active)return;
+ const c=ropeSel()?ropeCand():null;
+ if(c){tiePet(c);return}
+ const q=nearestPet();if(q){dropPet(q,true);say('You let the '+petName(q)+' go — rope back in your pack');save()}}
+function snapRope(a){dropPet(a,false);say('💥 The rope snapped! The '+petName(a)+' ran free');save()}
+function petTick(dt){
+ for(const a of pets.slice()){
+  if(!P.alive||a.pl.animals.indexOf(a)<0){dropPet(a,P.alive);continue}
+  const dist=a.root.position.distanceTo(cam.position),stuck=a.block>0;
+  if(dist>RP_HARD){snapRope(a);continue}
+  if(dist>RP_SOFT)a.strain+=dt*(stuck?2.5:1);
+  else if(stuck&&dist>RP_SOFT*.55)a.strain+=dt*.8; // it is blocked and you keep pulling
+  else a.strain=Math.max(0,a.strain-dt*1.5);
+  a.warnT-=dt;if(a.strain>.4&&a.warnT<=0){a.warnT=1.6;say(stuck?'🪢 It is stuck — stop pulling, the rope is straining!':'🪢 The rope is stretching — slow down!')}
+  if(a.strain>=RP_SNAP){snapRope(a);continue}
+  // draw the rope: from your hand to the creature's neck, slack when it is close and taut when it is far
+  cam.localToWorld(_rh.set(.45,-.4,-.7));_rn.copy(a.cs[2].p);
+  const len=_rh.distanceTo(_rn),up=P.mode==='ground'?P.up:_ry,sag=Math.max(0,RP_SOFT*.7-len)*.1;
+  for(let i=0;i<=RP_N;i++){const t=i/RP_N;_rp[i].lerpVectors(_rh,_rn,t).addScaledVector(up,-sag*4*t*(1-t))}
+  for(let i=0;i<RP_N;i++){const m=a.rope.children[i];_rd.subVectors(_rp[i+1],_rp[i]);const L=_rd.length()||1e-4;m.position.addVectors(_rp[i],_rp[i+1]).multiplyScalar(.5);m.scale.set(1,L,1);m.quaternion.setFromUnitVectors(_ry,_rd.divideScalar(L))}
+  a.ropeMat.color.lerpColors(_rc,_rr,Math.min(1,a.strain/RP_SNAP))}}
+function petUI(){
+ let t='';if(!ui&&!SL.on&&P.alive&&active){const c=ropeSel()?ropeCand():null;
+  if(c)t='🪢 Tie the '+petName(c)+'  <b>[Shift]</b>';else{const q=nearestPet();if(q)t='✋ Let the '+petName(q)+' go  <b>[Shift]</b>'}}
+ setH('rp',t);setSt('rp','display',t?'block':'none')}
 function loop(){
  requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);_dt=dt;
  if(active&&!ui){
@@ -1473,7 +1520,7 @@ function loop(){
   spawnTick(dt);{const ar2=ANIM_R*ANIM_R;planets.forEach(d=>d.animals.forEach(a=>{if(a.base.distanceToSquared(cam.position)<ar2)stepAnimal(a,dt)}))}
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
-  setH('tn',o?o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='snake'?' (dangerous!)':''):'');
+  setH('tn',o?o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='snake'?' (dangerous!)':'')+(o.pet?' (pet)':''):'');
   {const sb=o&&(o.kind==='animal'||o.kind==='snake')&&o.ht&&performance.now()-o.ht<4500; // a creature's health bar (no numbers) shows only while you are fighting it
    setSt('eb','display',sb?'block':'none');if(sb)setSt('eb','width',(Math.round(Math.max(0,o.hp)/o.mhp*50)*2)+'%',1)}
   aimObj=o;
@@ -1484,7 +1531,7 @@ function loop(){
    else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   setSt('hp','width',(Math.round(Math.max(0,P.hp)*2)/2)+'%',1);setSt('hg','width',(Math.round(P.hg*2)/2)+'%',1);
-  treeTick(dt);
+  petTick(dt);petUI();treeTick(dt);
  }
  syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
  stepGlitter(dt);SKY.position.copy(cam.position);
