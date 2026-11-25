@@ -93,7 +93,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -133,7 +133,7 @@ const rndDir=()=>new T.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
 const _M=new T.Matrix4(),_r=new T.Vector3();
 var gameReady=false;
 /* radius of the (smooth, high-detail) planet at any direction: the mesh is a finely tessellated sphere, so this is exact to ~5 cm and costs nothing */
-function surfR(d,n){return d.water?d.R-.05-wDepth(d,n):d.R-.05}
+function surfR(d,n){return d.water?d.R-.05-wDepth(d,n):d.chasm?d.R-.05-cDepth(d,n):d.R-.05}
 /* ---------- water (Verdant): one deep ocean + small rivers that branch, join each other and end in the ocean ----------
    The layout is a fixed, seeded height-field kept in the planet's own (unrotated) frame, so the same lakebed is always in the same place.
    depth = how far the ground dips below the normal land level; the water surface sits SEA below land level. Terrain mesh, walking and animals all read this one field. */
@@ -146,7 +146,8 @@ function wSample(w,x,y,z){ // bilinear lookup of the depth grid for a unit direc
  const g=w.g,a=g[j0*WGW+ia],b=g[j0*WGW+i1],c=g[(j0+1)*WGW+ia],e=g[(j0+1)*WGW+i1];
  return (a+(b-a)*fu)*(1-fv)+(c+(e-c)*fu)*fv}
 function wDepth(d,n){_wq.copy(d.rq).conjugate();_wv.copy(n).applyQuaternion(_wq);return wSample(d.water,_wv.x,_wv.y,_wv.z)}
-const wet=(d,n)=>d.water&&wDepth(d,n)>.02; // wet (or shore slope): trees and creatures stay away
+function cDepth(d,n){_wq.copy(d.rq).conjugate();_wv.copy(n).applyQuaternion(_wq);return wSample(d.chasm,_wv.x,_wv.y,_wv.z)}
+const wet=(d,n)=>d.water?wDepth(d,n)>.02:d.chasm?cDepth(d,n)>.02:false; // wet (or shore slope) / inside a chasm: trees and creatures stay away
 function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function buildWater(d){
  const R=d.R,rg=mulberry32(7312),rr=(a,b)=>a+rg()*(b-a),g=new Float32Array(WGW*WGH),V=(x,y,z)=>new T.Vector3(x,y,z);
@@ -191,6 +192,42 @@ function buildWater(d){
     const dist=Math.sqrt(cx*cx+cyy*cyy+cz*cz)*R,w=A.w+(B.w-A.w)*t,k=1-dist/(w*1.7);if(k<=0)continue;
     const dep=(3.4+w*.3)*ss(k),idx=j*WGW+ia;if(dep>g[idx])g[idx]=dep}}}
  d.wr=d.R-.05-SEA;return{g}}
+/* ---------- chasms (Ember): a few long, deep cracks. Same idea as the water: a fixed seeded depth grid in the planet's own frame (d.chasm.g, depth below normal ground).
+   Each crack is a meandering walk that pinches shut at both ends; some fork. Walls are steep (see chasmMove: you have to climb them), the floor is flat and dark. ---------- */
+function buildChasm(d){
+ const R=d.R,rg=mulberry32(9917),rr=(a,b)=>a+rg()*(b-a),g=new Float32Array(WGW*WGH);
+ const ss=t=>{t=t<0?0:t>1?1:t;return t*t*(3-2*t)},STEP=22,cracks=[],starts=[];
+ const walk=(p0,h0,steps,hw,dp)=>{const pts=[],p=p0.clone(),h=h0.clone();let turn=0;
+  for(let s=0;s<=steps;s++){const e=Math.pow(Math.sin(Math.PI*(s+.5)/(steps+1)),.6); // 0 at the tips, 1 in the middle
+   pts.push({p:p.clone(),w:hw*(.55+.45*e),d:dp*e});
+   turn+=(rg()-.5)*.5;turn*=.86;turn=Math.max(-.45,Math.min(.45,turn));
+   h.applyAxisAngle(p,turn);const ax=new T.Vector3().crossVectors(p,h).normalize();p.applyAxisAngle(ax,STEP/R);h.applyAxisAngle(ax,STEP/R);h.addScaledVector(p,-h.dot(p)).normalize()}
+  cracks.push(pts);return pts};
+ let made=0,guard=0;
+ while(made<5&&guard++<500){const q=rndUnit(rg);if(starts.some(o=>o.dot(q)>Math.cos(900/R)))continue; // cracks stay well apart: chasms are only in a few parts of the planet
+  starts.push(q);const t0=rndUnit(rg);t0.addScaledVector(q,-t0.dot(q)).normalize();
+  const hw=rr(70,100),dp=rr(55,75),main=walk(q,t0,Math.floor(rr(18,30)),hw,dp);
+  if(rg()<.55){const i=Math.floor(rr(6,main.length-6)),a=main[i].p,tg=main[i+1].p.clone().sub(main[i-1].p);tg.addScaledVector(a,-tg.dot(a)).normalize();
+   walk(a,tg.applyAxisAngle(a,(rg()<.5?-1:1)*rr(.7,1.1)),Math.floor(rr(8,14)),hw*.7,dp*.8)}
+  made++}
+ for(const pts of cracks)for(let s=0;s<pts.length-1;s++){
+  const A=pts[s],B=pts[s+1],ab=B.p.clone().sub(A.p),ab2=ab.lengthSq();if(ab2<1e-12)continue;
+  const mid=A.p.clone().add(B.p).normalize(),reach=Math.max(A.w,B.w)*1.1+8,rho=(STEP/2+reach)/R;
+  const mlat=Math.asin(mid.y),mlon=Math.atan2(mid.z,mid.x);
+  const j0=Math.max(0,Math.floor((mlat-rho+Math.PI/2)/Math.PI*(WGH-1))),j1=Math.min(WGH-1,Math.ceil((mlat+rho+Math.PI/2)/Math.PI*(WGH-1)));
+  const cmin=Math.cos(Math.min(Math.PI/2,Math.abs(mlat)+rho));let di=cmin<.03?WGW/2:Math.ceil(rho/cmin/(2*Math.PI)*WGW)+1;di=Math.min(di,WGW/2);
+  const ic=Math.round((mlon+Math.PI)/(2*Math.PI)*WGW);
+  for(let j=j0;j<=j1;j++){const lat=-Math.PI/2+j/(WGH-1)*Math.PI,cy=Math.sin(lat),cl=Math.cos(lat);
+   for(let di2=-di;di2<=di;di2++){const ia=((ic+di2)%WGW+WGW)%WGW,lon=-Math.PI+ia/WGW*2*Math.PI,x=cl*Math.cos(lon),z=cl*Math.sin(lon);
+    const t=Math.max(0,Math.min(1,((x-A.p.x)*ab.x+(cy-A.p.y)*ab.y+(z-A.p.z)*ab.z)/ab2)),cx=A.p.x+ab.x*t-x,cyy=A.p.y+ab.y*t-cy,cz=A.p.z+ab.z*t-z;
+    const dist=Math.sqrt(cx*cx+cyy*cyy+cz*cz)*R*(.98+.04*vnoise(x*36+3,cy*36,z*36)); // slightly ragged rims
+    const w=A.w+(B.w-A.w)*t,dd=A.d+(B.d-A.d)*t,k=(w-dist)/w; // smooth V / U profile: steep in the middle of each wall, rounded at the rim and at the floor
+    if(k<=0)continue;const dep=dd*ss(k),idx=j*WGW+ia;if(dep>g[idx])g[idx]=dep}}}
+ for(let it=0;it<2;it++){ // soften creases where two segments meet (so the visible terrain mesh and the walking height agree)
+  const t=new Float32Array(g.length);
+  for(let j=0;j<WGH;j++){const o=j*WGW;for(let i=0;i<WGW;i++)t[o+i]=(g[o+(i+WGW-1)%WGW]+2*g[o+i]+g[o+(i+1)%WGW])*.25}
+  for(let j=0;j<WGH;j++){const o=j*WGW,u=Math.max(0,j-1)*WGW,v=Math.min(WGH-1,j+1)*WGW;for(let i=0;i<WGW;i++)g[o+i]=(t[u+i]+2*t[o+i]+t[v+i])*.25}}
+ return{g}}
 function rndUnit(rg){let x,y,z,l;do{x=rg()*2-1;y=rg()*2-1;z=rg()*2-1;l=x*x+y*y+z*z}while(l>1||l<.01);l=Math.sqrt(l);return new T.Vector3(x/l,y/l,z/l)}
 /* smooth 3D value noise -> soft colour patches on the planets (no per-triangle colours) */
 const _h=(x,y,z)=>{let h=Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453;return h-Math.floor(h)};
@@ -233,7 +270,7 @@ function skinModel(k,s){const S=SKIN[k],g=new T.Group(),m=skinMat(k),H=S.head,B=
  return g}
 function setBase(a){a.base.copy(a.n).multiplyScalar(surfR(a.pl,a.n)).add(a.pl.c)}
 const cl01=x=>x<0?0:x>1?1:x,sm=(a,b,x)=>{const t=cl01((x-a)/(b-a));return t*t*(3-2*t)};
-const WSAND=new T.Color(0xd9c78a),WSHAL=new T.Color(0x2c8ea3),WDEEP=new T.Color(0x0a2c4b);
+const CROCK=new T.Color(0x3a2620),CDEEP=new T.Color(0x140b0a),CLAVA=new T.Color(0x9a3512),WSAND=new T.Color(0xd9c78a),WSHAL=new T.Color(0x2c8ea3),WDEEP=new T.Color(0x0a2c4b);
 const DAY_V=1200,DAY_E=1500,OLD_DAY_V=240,OLD_DAY_E=300; // seconds per full day/night cycle (old saves used 240/300)
 const planets=[],growing=[],regrow=[],REGROW=[40,80]; // a chopped tree grows back after 40-80 s
 const PDEF=[
@@ -289,22 +326,25 @@ vec2 gTri(float s,vec3 w){return texture2D(uG,vGP.yz*s).rg*w.x+texture2D(uG,vGP.
  return mt}
 PDEF.forEach(d=>{
  if(d.name==='Verdant')d.water=buildWater(d);
- d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,d.water?(COARSE?95:125):70); // ~100k triangles (same facet size as the old 220-radius planet), smooth normals (vertices sit exactly on the sphere)
+ if(d.name==='Ember')d.chasm=buildChasm(d);
+ d.Rs=d.R-.5;const g=new T.IcosahedronGeometry(d.R,d.water?(COARSE?95:125):d.chasm?(COARSE?82:110):70); // Verdant / Ember: same ~9 unit facets as the water planet so the steep chasm walls match the walking height; others ~100k triangles (same facet size as the old 220-radius planet), smooth normals (vertices sit exactly on the sphere)
  const P3=g.attributes.position,NR=g.attributes.normal,seed=rnd(0,100),pal=d.cols.map(c=>new T.Color(c)),col=new Float32Array(P3.count*3),tc=new T.Color();
  for(let i=0;i<P3.count;i++){const x=P3.getX(i)/d.R,y=P3.getY(i)/d.R,z=P3.getZ(i)/d.R;
   let t=fbm(x*2.4+seed,y*2.4+seed,z*2.4+seed);t=Math.max(0,Math.min(1,(t-.22)/.56)); // spread the noise over the whole palette
   const f=t*(pal.length-1),k=Math.min(pal.length-2,Math.floor(f)),q=f-k,e=q*q*(3-2*q);
   tc.copy(pal[k]).lerp(pal[k+1],e).offsetHSL(0,0,(vnoise(x*14+seed,y*14,z*14)-.5)*.07);
-  if(d.water){const dep=wSample(d.water,x,y,z);
-   if(dep>.0005){ // lakebed / riverbed: wet sand on the bank, then sand -> teal -> deep blue
-    if(dep<1.6)tc.lerp(WSAND,sm(0,.7,dep));else if(dep<7)tc.copy(WSAND).lerp(WSHAL,sm(1.6,7,dep));else tc.copy(WSHAL).lerp(WDEEP,sm(7,45,dep));
+  const F=d.water||d.chasm;
+  if(F){const dep=wSample(F,x,y,z);
+   if(dep>.0005){ // lakebed / riverbed: wet sand on the bank, then sand -> teal -> deep blue. Chasm: dark rock walls, a faint lava glow on the floor
+    if(d.chasm){tc.lerp(CROCK,sm(0,3,dep));if(dep>3)tc.lerp(CDEEP,sm(3,45,dep));if(dep>50)tc.lerp(CLAVA,sm(50,72,dep)*.55)}
+    else if(dep<1.6)tc.lerp(WSAND,sm(0,.7,dep));else if(dep<7)tc.copy(WSAND).lerp(WSHAL,sm(1.6,7,dep));else tc.copy(WSHAL).lerp(WDEEP,sm(7,45,dep));
     const r=d.R-dep;P3.setXYZ(i,x*r,y*r,z*r);
     let ex=-z,ez=x;const el=Math.hypot(ex,ez);if(el>1e-3){ex/=el;ez/=el}else{ex=1;ez=0}
     const fx=y*ez,fy=z*ex-x*ez,fz=-y*ex,E=3/d.R; // e2 = n x e1
-    const s1=(wSample(d.water,x+ex*E,y,z+ez*E)-wSample(d.water,x-ex*E,y,z-ez*E))/6,s2=(wSample(d.water,x+fx*E,y+fy*E,z+fz*E)-wSample(d.water,x-fx*E,y-fy*E,z-fz*E))/6;
+    const s1=(wSample(F,x+ex*E,y,z+ez*E)-wSample(F,x-ex*E,y,z-ez*E))/6,s2=(wSample(F,x+fx*E,y+fy*E,z+fz*E)-wSample(F,x-fx*E,y-fy*E,z-fz*E))/6;
     let nx=x+s1*ex+s2*fx,ny=y+s2*fy,nz=z+s1*ez+s2*fz;const nl=Math.hypot(nx,ny,nz)||1;NR.setXYZ(i,nx/nl,ny/nl,nz/nl)}}
   col[i*3]=tc.r;col[i*3+1]=tc.g;col[i*3+2]=tc.b}
- g.setAttribute('color',new T.BufferAttribute(col,3));if(d.water){P3.needsUpdate=true;NR.needsUpdate=true}
+ g.setAttribute('color',new T.BufferAttribute(col,3));if(d.water||d.chasm){P3.needsUpdate=true;NR.needsUpdate=true}
  const m=new T.Mesh(g,groundMat(d));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
  if(d.water){ // the sea surface: a smooth sphere that catches the sun's glint
   const wm=new T.Mesh(new T.IcosahedronGeometry(d.wr,60),new T.MeshPhongMaterial({color:0x1d77b0,emissive:0x03101c,specular:0x6f93b3,shininess:55,transparent:true,opacity:.8,side:T.DoubleSide}));
@@ -1193,6 +1233,17 @@ function uwUpdate(dt){ // underwater look: blue fog, darker with depth
   scene.fog.color.lerp(_cc,uwK);scene.fog.density+=(.016+.012*cl01(sub/60)-scene.fog.density)*uwK;
   SKY.material.uniforms.top.value.lerp(_cc,uwK);SKY.material.uniforms.hor.value.lerp(_cc,uwK)}
  setSt('uw','opacity',String(Math.round(uwK*.55*200)/200))}
+/* ---------- Ember chasm walls: too steep to walk. Hold W / Up while FACING the rock to climb slowly; let go (or face away) and you slide back down to the floor. ---------- */
+const CH_WALK=.8,CLIMB_V=3.2,CH_G=34,CH_VMAX=34,_cn=new T.Vector3(),_cu=new T.Vector3();
+function chasmMove(d,up,want,f,dt){ // rewrites 'want' (the walking velocity) when the ground under you is steeper than CH_WALK
+ const E=2.5/d.R,h=(v,s)=>surfR(d,_cn.copy(up).multiplyScalar(Math.cos(E)).addScaledVector(v,s*Math.sin(E)));
+ const ga=(h(P.hd,1)-h(P.hd,-1))/5,gb=(h(rgt,1)-h(rgt,-1))/5,sl=Math.hypot(ga,gb); // ground height gradient along your heading / sideways
+ if(sl<CH_WALK){P.cv=0;return}
+ _cu.copy(P.hd).multiplyScalar(ga/sl).addScaledVector(rgt,gb/sl); // uphill direction
+ const facing=P.hd.dot(_cu);
+ if(f>0&&facing>.25){P.cv=0;want.copy(P.hd).multiplyScalar(Math.min(d.spd||11,CLIMB_V/(sl*Math.max(.35,facing))))} // climbing: you rise at CLIMB_V no matter how steep
+ else{P.cv=Math.min(CH_VMAX,(P.cv||0)+CH_G*dt);want.copy(_cu).multiplyScalar(-Math.min(40,P.cv/sl)); // falling / sliding down the wall
+  const now=performance.now();if(!P.chH||now-P.chH>9000){P.chH=now;say('🕳 Chasm wall! Hold W / ↑ while facing the rock to climb — let go and you slide back down')}}}
 function groundStep(dt){
  const d=P.pl;if(d.ag){agGround(dt);return}
  if(d.water&&P.sw){swimStep(dt,d);return}
@@ -1209,6 +1260,7 @@ function groundStep(dt){
  const up=P.up.copy(cam.position).sub(d.c).normalize();
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar((d.spd||11)*slow);
+ if(d.chasm&&!P.fall&&sf<.5)chasmMove(d,up,want,f,dt);
  cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
  up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE+P.hh,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(P.hh>0?1:1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up);
@@ -1237,7 +1289,9 @@ function agGround(dt){
  P.up.copy(up);aim(up);
 }
 function leave(){ // off the ground and away: through the clouds into free space (or just off a Gravity Generator block)
- if(P.mode!=='ground')return;cam.getWorldDirection(fwd);const up=_a.copy(P.up),pl=P.pl,A=inAtmo();
+ if(P.mode!=='ground')return;
+ if(P.pl&&P.pl.chasm&&cDepth(P.pl,P.up)>6){say('🕳 You cannot launch from inside a chasm — climb the rock wall (hold W / ↑)');return}
+ cam.getWorldDirection(fwd);const up=_a.copy(P.up),pl=P.pl,A=inAtmo();
  P.yaw=Math.atan2(-fwd.x,-fwd.z);P.pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y)));
  P.vel.copy(up).multiplyScalar(36);P.launch=1.3;P.mode='space';P.pl=null;P.sw=false;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;$('jb').style.display='none';
  if(A){P.esc=A;P.escT=0;P.escUp.copy(up);say('🚀 Launching from '+A.name+' — up through the clouds!')}else say('Released from gravity — free flight!');

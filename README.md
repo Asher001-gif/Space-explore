@@ -44,6 +44,14 @@ Verdant has one deep ocean (about 95 units deep) and a network of small rivers t
 - **Breath:** under water a breath bar drains (30 s); at zero you take damage and can drown. Breath refills at the surface.
 - Your position is saved while swimming too, so you resume in the water where you quit.
 
+## Chasms (Ember only)
+Ember has a few long, deep cracks (about 55-75 units deep, roughly 4% of the surface) instead of water. Like the water they are a fixed seeded depth field (`buildChasm`, same layout every session) that the terrain mesh, walking height, trees and creatures all read, so the cracks are always in the same places. Ember's terrain uses the same ~9 unit facets as Verdant so the steep walls match the walking height.
+
+- **Falling in:** walk or fall over a rim (or land in one) and you end up on the dark floor.
+- **Climbing out:** the walls are too steep to walk. **Hold W / Up Arrow while facing the rock wall** and you climb slowly (about 3 units per second). **Let go, or turn away, and you slide back down.**
+- **No launching** (hold Space) from inside a chasm - you have to climb out. A short tap-hop still works.
+- **Creatures and trees never enter chasms.**
+
 ## Fish (Verdant)
 Small 3D fish swim in Verdant's ocean and rivers and now and then leap out of the water with a splash. They are built from the cut-out sheet `src/img/skin_fish.png` (head, body, left/right fins, dorsal fin, tail, belly, top, bottom). One hit kills a fish, even bare-handed; it drops a **Raw Fish** (+20 hunger). Craft **Cooked Fish** (+45 hunger) from 1 raw fish + 1 plank or 1 wood block. Killed fish are replaced after a while.
 
