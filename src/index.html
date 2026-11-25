@@ -576,6 +576,14 @@ function spawnSnake(d,n,rest){
 function despawnSnake(s){unreg(s);const l=s.pl.snakes,i=l.indexOf(s);if(i>=0)l.splice(i,1)}
 const _nk1=new T.Vector3(),_nk2=new T.Vector3(),_nk3=new T.Vector3(),_nkq=new T.Quaternion(),_nkx=new T.Vector3(),_nkm=new T.Matrix4();
 const SN_OFFS=[0,.6,-.6,1.2,-1.2,2,-2,Math.PI];
+const _nk4=new T.Vector3();
+/* snakes obey the same collision rules as animals: closed blocks / doors, asteroids and the player are solid to the head (open doors let it through) */
+function snakeBlocked(d,s,n){
+ const r=s.rad[0]*1.1;_nk4.copy(n).multiplyScalar(surfR(d,n)+s.rad[0]*.85).add(d.c);
+ for(const q of playerSph()){const m=r+q.r;if(_nk4.distanceToSquared(q.p)<m*m)return true}
+ for(const o of nearOf(NB_ANI,cam.position))if(!o.open&&sbDist2(_nk4,o.pos)<r*r)return true;
+ for(const k of asteroids){const m=k.rad+r;if(k.pos.distanceToSquared(_nk4)<m*m)return true}
+ return false}
 function snakeMove(d,s,step){ // advance the head 'step' radians along its heading; if the way is blocked (the ground there is too shallow = the chasm edge) it veers away. 0 = stuck
  const cur=cDepth(d,s.n);
  for(const off of SN_OFFS){
@@ -583,7 +591,7 @@ function snakeMove(d,s,step){ // advance the head 'step' radians along its headi
   _nkx.crossVectors(s.n,_nk1).normalize();_nkq.setFromAxisAngle(_nkx,step);
   _nk2.copy(s.n).applyQuaternion(_nkq);
   const nd=cDepth(d,_nk2);
-  if(nd>=SN_MIN||nd>cur+.05){s.n.copy(_nk2);s.t.copy(_nk1).applyQuaternion(_nkq);s.t.addScaledVector(s.n,-s.t.dot(s.n)).normalize();return off?2:1}}
+  if((nd>=SN_MIN||nd>cur+.05)&&!snakeBlocked(d,s,_nk2)){s.n.copy(_nk2);s.t.copy(_nk1).applyQuaternion(_nkq);s.t.addScaledVector(s.n,-s.t.dot(s.n)).normalize();return off?2:1}}
  return 0}
 function chainFollow(cur,prev,gap){const a=Math.acos(Math.max(-1,Math.min(1,cur.dot(prev))));if(a<=gap)return;_nkx.crossVectors(cur,prev);if(_nkx.lengthSq()<1e-14)return;_nkx.normalize();cur.applyQuaternion(_nkq.setFromAxisAngle(_nkx,a-gap)).normalize()}
 function snakePose(d,s,dt){ // body segments -> world positions on the chasm floor, head orientation, tongue
