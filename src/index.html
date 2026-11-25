@@ -97,7 +97,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near any animal and press <b>Shift</b> (or the button) to tie it as a pet — it follows you. Go too far, or keep pulling while it is stuck, and the rope snaps. Shift again lets it go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near a <b>peaceful</b> animal or a fish and press <b>Shift</b> (or the button) to tame it — it follows you. Predators and serpents just break the rope. You can keep <b>3 pets</b> at a time. Go too far, or keep pulling while it is stuck, and the rope snaps. A pet fish dies if you carry it on land for too long. Shift again lets a pet go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -472,12 +472,32 @@ function spawnFish(d,n){const g=makeFishMesh(),sc=rnd(.42,.7);g.scale.setScalar(
  const dep=wDepth(d,n),f={g,n:n.clone(),t,sc,spd:rnd(2.2,4),dp:rnd(1.2,Math.max(1.3,Math.min(6,dep-1))),r:d.wr-1.5,vr:0,air:false,jt:rnd(5,22),ph:rnd(0,6.3),turn:0,tt:rnd(2,6),sp:0};
  f.r=d.wr-f.dp;Object.assign(f,{kind:'fish',name:'Fish 🐟',time:.4,pl:d,hp:1,mhp:1,cs:[{p:g.position,r:1.3*sc}]});reg(g,f);d.fish.push(f);return f} // one hit kills it, even bare-handed
 function placeFish(d,f){const bed=surfR(d,f.n);f.g.position.copy(f.n).multiplyScalar(f.r).add(d.c)}
+/* a tied fish swims after you; if you carry it over land it flops along the ground and dies after FISH_DRY seconds out of the water */
+function fishPet(d,f,dt){
+ const pp=cam.position,dist=f.g.position.distanceTo(pp);
+ _fv.copy(pp).sub(d.c).normalize();
+ f.t.copy(_fv).addScaledVector(f.n,-_fv.dot(f.n));if(f.t.lengthSq()<1e-8)f.t.copy(rndDir());f.t.addScaledVector(f.n,-f.t.dot(f.n)).normalize();
+ const sp=dist>6?f.spd*(dist>12?2.6:1.4):0;
+ f.n.addScaledVector(f.t,sp*dt/f.r).normalize();f.t.addScaledVector(f.n,-f.t.dot(f.n)).normalize();
+ const wet=wDepth(d,f.n)>=1,nb=surfR(d,f.n),tr=wet?Math.max(nb+1,d.wr-Math.min(f.dp,1.2)):nb+.35;
+ f.r+=(tr-f.r)*Math.min(1,dt*4);f.air=false;f.vr=0;
+ f.dry=wet?Math.max(0,f.dry-dt*2):f.dry+dt;
+ if(!wet&&f.dry>=FISH_DRY*.5&&!f.warned){f.warned=true;say('🐟 The fish is struggling out of the water — put it back soon!')}
+ if(wet)f.warned=false;
+ if(f.dry>=FISH_DRY){dropPet(f,true);const l=d.fish,i=l.indexOf(f);if(i>=0)l.splice(i,1);unreg(f);say('💀 The fish died out of the water — rope back in your pack');save();return}
+ _fx.crossVectors(f.n,f.t).normalize();_fv2.crossVectors(f.t,_fx);_M.makeBasis(_fx,_fv2,f.t);f.g.quaternion.setFromRotationMatrix(_M);
+ if(!wet)f.g.rotateZ(Math.sin(fishT*18)*.5*Math.min(1,f.dry/3)); // flops about on dry land
+ f.g.position.copy(f.n).multiplyScalar(f.r).add(d.c);
+ const u=f.g.userData,w=fishT*(sp>0?9:6)*(f.spd/3)+f.ph;
+ u.tailP.rotation.y=Math.sin(w*(wet?1:2.5))*.5;u.pivot.rotation.y=Math.sin(w-.9)*.08;
+ u.fl.rotation.z=.55+Math.sin(w*.8)*.25;u.fr.rotation.z=-.55-Math.sin(w*.8)*.25;f.g.visible=true}
 function fishTick(dt){
  const d=planets.find(p=>p.name==='Verdant');if(!d||!d.water)return;
  if(!fishInit){fishInit=true;for(let i=0;i<FISH_N;i++){const n=fishSpot(d,i<22);if(n)spawnFish(d,n)}}
  fishT+=dt;
  fishSp-=dt;if(fishSp<=0){fishSp=5;if(d.fish.length<FISH_N){const n=fishSpot(d,true);if(n)spawnFish(d,n)}} // caught fish are replaced after a while
- for(const f of d.fish){
+ for(const f of d.fish.slice()){
+  if(f.pet){fishPet(d,f,dt);continue}
   const bedR=surfR(d,f.n);
   // heading: wander, turn away from shallows
   f.tt-=dt;if(f.tt<=0){f.tt=rnd(1.5,5);f.turn=rnd(-.9,.9)}
@@ -505,7 +525,7 @@ function fishTick(dt){
   u.fl.rotation.z=.55+Math.sin(w*.8)*.25;u.fr.rotation.z=-.55-Math.sin(w*.8)*.25;
   f.g.visible=true}
  // keep the school around you: a fish left far behind reappears near where you are
- fishRel-=dt;if(fishRel<=0){fishRel=3;let far=null,fd=0;for(const f of d.fish){const q=f.g.position.distanceTo(cam.position);if(q>fd){fd=q;far=f}}
+ fishRel-=dt;if(fishRel<=0){fishRel=3;let far=null,fd=0;for(const f of d.fish){if(f.pet)continue;const q=f.g.position.distanceTo(cam.position);if(q>fd){fd=q;far=f}}
   if(far&&fd>320){const n=fishSpot(d,true);if(n){const nd=n.clone().multiplyScalar(d.wr).add(d.c).distanceTo(cam.position);if(nd<fd-100){far.n.copy(n);far.t.copy(rndDir());far.t.addScaledVector(n,-far.t.dot(n)).normalize();far.air=false;far.r=d.wr-far.dp;far.jt=rnd(4,16)}}}}
  for(const m of splashes){if(!m.on)continue;m.t+=dt;const k=m.t/1.1;if(k>=1){m.on=0;m.me.visible=false;continue}
   const nr=m.n;m.me.position.copy(nr).multiplyScalar(m.d.wr+.05).add(m.d.c);_M.makeBasis(_fx.crossVectors(nr,_fv.set(0,1,.01)).normalize(),nr,_fv2.crossVectors(_fx,nr).normalize());m.me.quaternion.setFromRotationMatrix(_M);
@@ -1250,7 +1270,7 @@ function finish(o){
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else if(o.kind==='snake'){despawnSnake(o);inv.food+=3;inv.leather++;say('+3 meat, +1 leather')}
- else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);inv.fish++;say('+1 raw fish 🐟')}
+ else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);if(o.pet)dropPet(o,true);inv.fish++;say('+1 raw fish 🐟')}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred){if(Math.random()<.7){inv.leather++;m+=', +1 leather'}else{inv.anti++;m+=', +1 Gravity Generator ✨'}}else if(Math.random()<.25){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m);if(o.pet)dropPet(o,true);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
 /* ---------- atmosphere: clouds -> sky colour, no stars below the clouds, gravity pulls you down ---------- */
@@ -1461,14 +1481,19 @@ function sleepTick(dt){
 /* ---------- pets: select a Rope, get close to any animal (predator or peaceful), press Shift (or the button) to tie it. It follows you on the rope.
    Go too far, or keep pulling while it is stuck behind something, and the rope strains and then SNAPS (the rope is lost, the creature goes free).
    Shift again (or the button) lets it go and gives the rope back. One rope per creature. ---------- */
-const RP_NEAR=10,RP_SOFT=16,RP_HARD=45,RP_SNAP=3,RP_N=7;
+const RP_NEAR=10,RP_SOFT=16,RP_HARD=45,RP_SNAP=3,RP_N=7,PET_MAX=3,FISH_DRY=12; // max 3 pets at once; a tied fish dies after FISH_DRY seconds out of the water
+const isHarmful=a=>!!a.pred||a.kind==='snake'; // predators and chasm serpents can never be tamed
+const cPos=a=>a.kind==='snake'?a.cs[0].p:a.root.position;
 const ropeGeo=new T.CylinderGeometry(.07,.07,1,5),_rh=new T.Vector3(),_rn=new T.Vector3(),_rp=[],_rd=new T.Vector3(),_ry=new T.Vector3(0,1,0),_rc=new T.Color(0xc8964f),_rr=new T.Color(0xff3b2a);
 for(let i=0;i<=RP_N;i++)_rp.push(new T.Vector3());
 const ropeSel=()=>layout[HB+sel]==='rope'&&inv.rope>0;
-function ropeCand(){let best=null,bd=RP_NEAR;for(const d of planets)for(const a of d.animals){if(a.pet||a.dying)continue;const g=a.root.position.distanceTo(cam.position);if(g<bd){bd=g;best=a}}return best}
+function ropeCand(){let best=null,bd=RP_NEAR;for(const d of planets)for(const l of [d.animals,d.fish,d.snakes]){if(!l)continue;for(const a of l){if(a.pet||a.dying)continue;const g=cPos(a).distanceTo(cam.position);if(g<bd){bd=g;best=a}}}return best}
 const petName=a=>a.name.replace(/[^\x20-\x7E]/g,'').trim();
-function nearestPet(){let best=null,bd=1e9;for(const a of pets){const g=a.root.position.distanceTo(cam.position);if(g<bd){bd=g;best=a}}return best}
-function tiePet(a){if(a.pet||inv.rope<1)return;inv.rope--;a.pet=true;a.strain=0;a.warnT=0;
+function nearestPet(){let best=null,bd=1e9;for(const a of pets){const g=cPos(a).distanceTo(cam.position);if(g<bd){bd=g;best=a}}return best}
+function tiePet(a){if(a.pet||inv.rope<1)return;
+ if(isHarmful(a)){inv.rope--;say('💥 Rope broke by the '+petName(a)+'! Only peaceful animals can be tamed');save();return} // predators and serpents snap the rope
+ if(pets.length>=PET_MAX){say('🪢 You can only keep '+PET_MAX+' pets at a time — let one go first');return}
+ inv.rope--;a.pet=true;a.dry=0;a.strain=0;a.warnT=0;
  const g=new T.Group(),mt=new T.MeshStandardMaterial({color:0xc8964f,roughness:1});
  for(let i=0;i<RP_N;i++){const m=new T.Mesh(ropeGeo,mt);m.raycast=()=>{};g.add(m)}
  scene.add(g);a.rope=g;a.ropeMat=mt;pets.push(a);say('🪢 Tied the '+petName(a)+' — keep it close or the rope may snap');save()}
@@ -1481,8 +1506,8 @@ function ropeAction(){
 function snapRope(a){dropPet(a,false);say('💥 The rope snapped! The '+petName(a)+' ran free');save()}
 function petTick(dt){
  for(const a of pets.slice()){
-  if(!P.alive||a.pl.animals.indexOf(a)<0){dropPet(a,P.alive);continue}
-  const dist=a.root.position.distanceTo(cam.position),stuck=a.block>0;
+  if(!P.alive||(a.kind==='fish'?a.pl.fish:a.pl.animals).indexOf(a)<0){dropPet(a,P.alive);continue}
+  const dist=cPos(a).distanceTo(cam.position),stuck=a.block>0;
   if(dist>RP_HARD){snapRope(a);continue}
   if(dist>RP_SOFT)a.strain+=dt*(stuck?2.5:1);
   else if(stuck&&dist>RP_SOFT*.55)a.strain+=dt*.8; // it is blocked and you keep pulling
@@ -1490,7 +1515,7 @@ function petTick(dt){
   a.warnT-=dt;if(a.strain>.4&&a.warnT<=0){a.warnT=1.6;say(stuck?'🪢 It is stuck — stop pulling, the rope is straining!':'🪢 The rope is stretching — slow down!')}
   if(a.strain>=RP_SNAP){snapRope(a);continue}
   // draw the rope: from your hand to the creature's neck, slack when it is close and taut when it is far
-  cam.localToWorld(_rh.set(.45,-.4,-.7));_rn.copy(a.cs[2].p);
+  cam.localToWorld(_rh.set(.45,-.4,-.7));_rn.copy(a.cs[a.kind==='fish'?0:2].p);
   const len=_rh.distanceTo(_rn),up=P.mode==='ground'?P.up:_ry,sag=Math.max(0,RP_SOFT*.7-len)*.1;
   for(let i=0;i<=RP_N;i++){const t=i/RP_N;_rp[i].lerpVectors(_rh,_rn,t).addScaledVector(up,-sag*4*t*(1-t))}
   for(let i=0;i<RP_N;i++){const m=a.rope.children[i];_rd.subVectors(_rp[i+1],_rp[i]);const L=_rd.length()||1e-4;m.position.addVectors(_rp[i],_rp[i+1]).multiplyScalar(.5);m.scale.set(1,L,1);m.quaternion.setFromUnitVectors(_ry,_rd.divideScalar(L))}
