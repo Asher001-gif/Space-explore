@@ -803,6 +803,7 @@ function stepGlitter(dt){
 /* ---------- Gravity Generator ---------- */
 function useAnti(){
  if(inv.anti<=0){say('No Gravity Generator — animals & predators drop them');return}
+ if(inAtmo()){say("Gravity Generator doesn't work inside a planet's atmosphere — the planet's gravity holds you. Use it out in space.");return}
  ray.far=16;ray.set(cam.position,fwd);
  const bh=ray.intersectObjects(targets.filter(m=>m.userData.o.kind==='block'),false)[0];
  if(!bh){say('Aim at a block to use it on');return}
@@ -1088,7 +1089,9 @@ function colRes(pos,up,vel,skip){
   _p.copy(pos);if(up)_p.addScaledVector(up,-off);
   const push=(nx,ny,nz,amt)=>{_n.set(nx,ny,nz);if(up)_n.addScaledVector(up,-_n.dot(up));const l=_n.length();if(l<1e-4)return;_n.multiplyScalar(1/l);pos.addScaledVector(_n,amt);_p.addScaledVector(_n,amt);if(vel){const vn=vel.dot(_n);if(vn<0)vel.addScaledVector(_n,-vn)}};
   for(const o of blocks.values()){if(o.open||skip&&skip(o))continue;const b=o.pos;if(b.distanceToSquared(_p)>(r+1.75)*(r+1.75))continue;boxPt(b,_p,_k);const dx=_p.x-_k.x,dy=_p.y-_k.y,dz=_p.z-_k.z,d2=dx*dx+dy*dy+dz*dz;
-   if(d2<r*r){const d=Math.sqrt(d2);if(d>1e-5)push(dx/d,dy/d,dz/d,r-d);else push(up?up.x:0,up?up.y:1,up?up.z:0,r)}}
+   if(d2<r*r){const d=Math.sqrt(d2);
+    if(d>1e-5){if(up&&(dx*up.x+dy*up.y+dz*up.z)/d>.5)continue; // touching the TOP of a block = standing on it (height is handled by supportAt); pushing sideways here made you slide off tilted / edge blocks
+     push(dx/d,dy/d,dz/d,r-d)}else push(up?up.x:0,up?up.y:1,up?up.z:0,r)}}
   for(const a of asteroids){const dx=_p.x-a.pos.x,dy=_p.y-a.pos.y,dz=_p.z-a.pos.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=a.rad+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)}
   const sph=(c)=>{const dx=_p.x-c.p.x,dy=_p.y-c.p.y,dz=_p.z-c.p.z,L=Math.sqrt(dx*dx+dy*dy+dz*dz),m=c.r+r;if(L<m&&L>1e-5)push(dx/L,dy/L,dz/L,m-L)};
   for(const d of planets){
@@ -1135,7 +1138,7 @@ function supportAt(d,pos,up,hh){
  let f=0,c=1e9;const sr=surfR(d,up);
  for(const o of blocks.values()){const b=o.pos;if(o.open||b.distanceToSquared(pos)>81)continue;
   if(o.s.up.dot(up)<.8)continue;
-  _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>(b.hx||1)+.5||Math.abs(_L.z)>(b.hz||1)+.5)continue; // you are over / under this block
+  _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>(b.hx||1)+.4||Math.abs(_L.z)>(b.hz||1)+.4)continue; // you are over / under this block
   const ht=_t2.copy(b).addScaledVector(o.s.up,1).sub(d.c).dot(up)-sr,hb=ht-2;
   if(ht<=hh+.45){if(ht>f)f=ht}else if(hb>=hh-.05&&hb<c)c=hb}
  return[f,c]}
