@@ -531,7 +531,7 @@ function animalHit(a){
  const pls=playerSph();
  for(const c of a.cs){
   for(const q of pls){const m=c.r+q.r;if(c.p.distanceToSquared(q.p)<m*m)return 1}
-  for(const o of blocks.values())if(!o.open&&sbDist2(c.p,o.pos)<c.r*c.r)return 2;
+  for(const o of nearOf(NB_ANI,cam.position))if(!o.open&&sbDist2(c.p,o.pos)<c.r*c.r)return 2;
   for(const k of asteroids){const m=k.rad+c.r;if(k.pos.distanceToSquared(c.p)<m*m)return 2}
  }
  for(const t of a.pl.treeList){const bd=9*t.s+3;if(t.base.distanceToSquared(a.base)>bd*bd)continue;
@@ -601,6 +601,15 @@ function mkItem(kind){
 const ICON={};['wood','stone','hull'].forEach(k=>ICON[k]=mkIcon(k));ICON.anti=mkIcon('anti');
 ['cooked','stew','bandage','medkit'].forEach(k=>ICON[k]=mkItem(k));ICON.pickaxe='pickaxe';ICON.axe='axe';ICON.spear='spear';
 const blocks=new Map();
+let blocksVer=0; // bumps whenever a block is added / removed / turned into a Gravity Generator block / a door opens or closes
+for(const m of['set','delete','clear']){const f=blocks[m];blocks[m]=function(...a){blocksVer++;return f.apply(this,a)}}
+/* cached list of the blocks within R of a point. It is rebuilt only when blocks change, you moved more than M away from where it was built, or 250 ms passed
+   (planets spin, which slides blocks around), so collision does not have to look at every block in the world several times per frame. */
+const mkNear=(R,M)=>({R,M,c:new T.Vector3(),list:[],ver:-1,t:0});
+function nearOf(n,p){const now=performance.now();
+ if(n.ver!==blocksVer||now-n.t>250||n.c.distanceToSquared(p)>n.M*n.M){n.list.length=0;const r2=n.R*n.R;for(const o of blocks.values())if(o.pos.distanceToSquared(p)<r2)n.list.push(o);n.c.copy(p);n.t=now;n.ver=blocksVer}
+ return n.list}
+const NB_COL=mkNear(60,20),NB_ANI=mkNear(140,40),ANIM_R=90,TREE_NEAR2=260*260; // animals further than ANIM_R from you stand still; trees / animals further than 260 only catch up with the planet's spin in small steps
 /* ---------- Gravity Generator blocks: the flag lives on the block (saved), spreads to every connected block ---------- */
 const agGeo=new T.BoxGeometry(2,2,2),agMat=new T.MeshBasicMaterial({color:0x7af3ff,transparent:true,opacity:.18,blending:T.AdditiveBlending,depthWrite:false}),agEdge=new T.LineBasicMaterial({color:0x9ff8ff,transparent:true,opacity:.9});
 const AGW={name:'Gravity Generator Blocks',ag:true,spd:9,animals:[]};
@@ -647,13 +656,13 @@ function toggleDoor(dr){
  if(dr.open){ // closing: refuse if you, an animal, a tree or an asteroid is in the doorway
   const busy=[dr.lo.pos,dr.hi.pos].some(p=>cubeBusy(p)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04)));
   if(busy){say('Something is in the way');return}}
- dr.open=!dr.open;dr.lo.open=dr.hi.open=dr.open;agDirty=true;say(dr.open?'Door opened':'Door closed');save()}
+ dr.open=!dr.open;dr.lo.open=dr.hi.open=dr.open;agDirty=true;blocksVer++;say(dr.open?'Door opened':'Door closed');save()}
 const DOORZ=4.5; // within this distance of an open door: no auto-sticking to Gravity Generator blocks, slimmer body, firmer floor grip
 function nearOpenDoor(p,r){for(const dr of doors){if(dr.open&&(dr.lo.pos.distanceToSquared(p)<r*r||dr.hi.pos.distanceToSquared(p)<r*r))return true}return false}
 function doorTick(dt){for(const dr of doors){const tg=dr.open?dr.sw*Math.PI/2:0;if(Math.abs(tg-dr.ang)>.001){dr.ang+=(tg-dr.ang)*Math.min(1,dt*9);dr.pv.forEach(h=>h.rotation.y=dr.ang)}}}
 let agArr=[],agDirty=true;
 const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag&&!o.open);agDirty=false}return agArr};
-function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;o.name=BT[o.type].n+' (Gravity Generator)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
+function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;blocksVer++;o.name=BT[o.type].n+' (Gravity Generator)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
 function floodAG(start){let n=0;const q=[start],seen=new Set(q);while(q.length){const o=q.pop();if(markAG(o))n++;for(const m of nbrs(o))if(!seen.has(m)){seen.add(m);q.push(m)}}return n}
 const STICK=1.45; // a surface you already stand on counts this much closer than any other, so doorways, corridors and rooms don't flip your gravity onto the frame / walls / ceiling
 function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest point on the surface of any Gravity Generator block (if 'up' is given: the floor you stand on is preferred)
@@ -735,16 +744,19 @@ const clockStr=()=>{if(!ATM.d)return '🌌 Open space';return dayA>.7?'☀ Day':
    because saved blocks are already stored in the turned frame). */
 const _sq=new T.Quaternion(),_sm4=new T.Matrix4();
 /* the sun is far beyond the camera's draw distance, so it is drawn on the same line of sight at SUN_DRAW units, shrunk by the same factor: same size in the sky, correct hiding behind planets */
-const _sv2=new T.Vector3();
+const _sv2=new T.Vector3(),_sq2=new T.Quaternion();
 function placeSun(){const v=_sv2.copy(SUN).sub(cam.position),D=v.length(),k=Math.min(D,SUN_DRAW)/D;SUNMESH.forEach(m=>{m.position.copy(cam.position).addScaledVector(v,k);m.scale.setScalar(1000*k)})}
-function spinPlanet(d,ang,full){
+function spinPlanet(d,ang,full,force){
  const q=_sq.setFromAxisAngle(d.axis,ang),c=d.c;
  d.mesh.quaternion.premultiply(q);d.rq.premultiply(q).normalize();d.cloudU.uRot.value.setFromMatrix4(_sm4.makeRotationFromQuaternion(d.rq));
- for(const o of d.treeList){o.n.applyQuaternion(q);o.base.sub(c).applyQuaternion(q).add(c);o.root.position.copy(o.base);o.root.quaternion.premultiply(q);treeCS(o,o.root.scale.x)}
+ /* trees, sprouts and animals: those within 260 of you turn every frame; the rest catch up (by the angle they owe, o.sa = angle they are synced to) once the planet has turned ~1.5 units of arc */
+ d.sp=(d.sp||0)+ang;const far=force||Math.abs(d.sp-(d.fsp||0))>=1.5/d.R;if(far)d.fsp=d.sp;
+ const cp=cam.position,owe=o=>{if(o.sa===undefined)o.sa=d.sp-ang;if(!far&&!(o.base.distanceToSquared(cp)<TREE_NEAR2))return null;const a=d.sp-o.sa;if(!a)return null;o.sa=d.sp;return _sq2.setFromAxisAngle(d.axis,a)};
+ for(const o of d.treeList){const k=owe(o);if(!k)continue;o.n.applyQuaternion(k);o.base.sub(c).applyQuaternion(k).add(c);o.root.position.copy(o.base);o.root.quaternion.premultiply(k);treeCS(o,o.root.scale.x)}
  for(const f of d.fish){f.n.applyQuaternion(q);f.t.applyQuaternion(q)}
  for(const m of splashes)if(m.on&&m.d===d)m.n.applyQuaternion(q);
- for(const o of d.sprouts){o.n.applyQuaternion(q);o.base.sub(c).applyQuaternion(q).add(c);o.q.premultiply(q);o.root.position.copy(o.base);o.root.quaternion.copy(o.q)}
- for(const a of d.animals){a.n.applyQuaternion(q);a.t.applyQuaternion(q);setBase(a);orient(a);animalCS(a)}
+ for(const o of d.sprouts){const k=owe(o);if(!k)continue;o.n.applyQuaternion(k);o.base.sub(c).applyQuaternion(k).add(c);o.q.premultiply(k);o.root.position.copy(o.base);o.root.quaternion.copy(o.q)}
+ for(const a of d.animals){const k=owe(a);if(!k)continue;a.n.applyQuaternion(k);a.t.applyQuaternion(k);setBase(a);orient(a);animalCS(a)}
  if(!full)return;
  for(const g of structs.values()){if(g.origin.distanceTo(c)>=d.RA)continue;
   g.origin.sub(c).applyQuaternion(q).add(c);g.q.premultiply(q).normalize();g.iq.copy(g.q).conjugate();g.up.set(0,1,0).applyQuaternion(g.q)}
@@ -754,7 +766,7 @@ function spinPlanet(d,ang,full){
   cam.position.sub(c).applyQuaternion(q).add(c);P.hd.applyQuaternion(q);P.up.applyQuaternion(q);P.vu.applyQuaternion(q)}
 }
 function spinWorld(dt){for(const d of planets){const a=d.spin*dt;d.ang+=a;spinPlanet(d,a,true)}}
-function syncSpin(angs){for(let i=0;i<planets.length;i++){const d=planets[i],t=angs&&Number.isFinite(angs[i])?angs[i]:(d.name==='Verdant'?2*Math.PI/OLD_DAY_V:-2*Math.PI/OLD_DAY_E)*worldTime,a=t-d.ang;if(a){spinPlanet(d,a,false);d.ang=t}}} // after a save is loaded
+function syncSpin(angs){for(let i=0;i<planets.length;i++){const d=planets[i],t=angs&&Number.isFinite(angs[i])?angs[i]:(d.name==='Verdant'?2*Math.PI/OLD_DAY_V:-2*Math.PI/OLD_DAY_E)*worldTime,a=t-d.ang;if(a){spinPlanet(d,a,false,true);d.ang=t}}} // after a save is loaded
 function despawn(a){unreg(a);const l=a.pl.animals,i=l.indexOf(a);if(i>=0)l.splice(i,1)}
 function retire(a){if(a.root.position.distanceTo(cam.position)>45)despawn(a);else{a.dying=(a.dying||0)+2;a.root.scale.setScalar(Math.max(.05,1-a.dying/6));if(a.dying>=6)despawn(a)}}
 function spawnTick(dt){
@@ -821,11 +833,15 @@ function posSnap(){ // exact spot, view and mode, so the game resumes right wher
  if(P.mode==='ground'&&P.pl)o.pl=P.pl.ag?'AG':planets.indexOf(P.pl);
  return o;
 }
+let _bc={v:-1,s:'[]',ids:[]},_lastSave='',_ticked=false; // _bc: the blocks part of the save, rebuilt only when blocks changed
 function save(){
  try{
-  const b=[],ss=new Map();blocks.forEach(o=>{if(o.top)return;ss.set(o.s.id,o.s);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
-  const S=[...ss.values()].map(g=>[g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w]);
-  localStorage.setItem(SAVE_KEY,JSON.stringify({v:1,lv:3,structs:S,blocks:b,inv:inv,hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()}));
+  if(_bc.v!==blocksVer){const b=[],ids=new Set();blocks.forEach(o=>{if(o.top)return;ids.add(o.s.id);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
+   _bc={v:blocksVer,s:JSON.stringify(b),ids:[...ids]}}
+  const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
+  const rest=JSON.stringify({inv:inv,hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
+  const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+','+rest.slice(1);
+  if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
 }
 function loadSave(){
@@ -853,7 +869,7 @@ function loadSave(){
  }catch(e){/* corrupt save - ignore and start fresh */}
 }
 loadSave();syncGrid();
-setInterval(save,3000);
+setInterval(()=>{if(_ticked){_ticked=false;save()}},3000); // autosave only if the game actually ran since the last save (not while paused / in a menu)
 addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 let active=false,ui=false,locked=false,drag=false;
@@ -1088,7 +1104,7 @@ function colRes(pos,up,vel,skip){
  for(let it=0;it<2;it++)for(const[off,r]of probes){
   _p.copy(pos);if(up)_p.addScaledVector(up,-off);
   const push=(nx,ny,nz,amt)=>{_n.set(nx,ny,nz);if(up)_n.addScaledVector(up,-_n.dot(up));const l=_n.length();if(l<1e-4)return;_n.multiplyScalar(1/l);pos.addScaledVector(_n,amt);_p.addScaledVector(_n,amt);if(vel){const vn=vel.dot(_n);if(vn<0)vel.addScaledVector(_n,-vn)}};
-  for(const o of blocks.values()){if(o.open||skip&&skip(o))continue;const b=o.pos;if(b.distanceToSquared(_p)>(r+1.75)*(r+1.75))continue;boxPt(b,_p,_k);const dx=_p.x-_k.x,dy=_p.y-_k.y,dz=_p.z-_k.z,d2=dx*dx+dy*dy+dz*dz;
+  for(const o of nearOf(NB_COL,pos)){if(o.open||skip&&skip(o))continue;const b=o.pos;if(b.distanceToSquared(_p)>(r+1.75)*(r+1.75))continue;boxPt(b,_p,_k);const dx=_p.x-_k.x,dy=_p.y-_k.y,dz=_p.z-_k.z,d2=dx*dx+dy*dy+dz*dz;
    if(d2<r*r){const d=Math.sqrt(d2);
     if(d>1e-5){if(up&&(dx*up.x+dy*up.y+dz*up.z)/d>.5)continue; // touching the TOP of a block = standing on it (height is handled by supportAt); pushing sideways here made you slide off tilted / edge blocks
      push(dx/d,dy/d,dz/d,r-d)}else push(up?up.x:0,up?up.y:1,up?up.z:0,r)}}
@@ -1136,7 +1152,7 @@ function aim(up){
    and the underside of the lowest block above your head = ceiling. Blocks beside you are walls (colRes). */
 function supportAt(d,pos,up,hh){
  let f=0,c=1e9;const sr=surfR(d,up);
- for(const o of blocks.values()){const b=o.pos;if(o.open||b.distanceToSquared(pos)>81)continue;
+ for(const o of nearOf(NB_COL,pos)){const b=o.pos;if(o.open||b.distanceToSquared(pos)>81)continue;
   if(o.s.up.dot(up)<.8)continue;
   _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>(b.hx||1)+.4||Math.abs(_L.z)>(b.hz||1)+.4)continue; // you are over / under this block
   const ht=_t2.copy(b).addScaledVector(o.s.up,1).sub(d.c).dot(up)-sr,hb=ht-2;
@@ -1161,10 +1177,13 @@ function swimStep(dt,d){ // in water: you sink unless you hold jump; arrow keys 
   P.sw=false;P.hh=Math.max(0,P.swY-floor);P.hv=0;P.sv=0;jh=null;$('jb').style.display='none'}
  cam.position.copy(d.c).addScaledVector(up,d.wr+P.swY);
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up)}
+const _hc={};
+function setH(id,h){if(_hc[id]!==h){_hc[id]=h;$(id).innerHTML=h}}
+function setSt(id,p,v,kid){const k=id+'.'+p;if(_hc[k]!==v){_hc[k]=v;(kid?$(id).firstChild:$(id)).style[p]=v}}
 function breathTick(dt){
  const under=P.mode==='ground'&&P.sw&&P.swY<0;
  if(under){P.air=Math.max(0,P.air-100/AIR_T*dt);if(P.air<=0)hurt(8*dt,'drown')}else P.air=Math.min(100,P.air+60*dt);
- $('oxw').style.display=P.air<99.5?'block':'none';$('ox').firstChild.style.width=P.air+'%'}
+ setSt('oxw','display',P.air<99.5?'block':'none');setSt('ox','width',(Math.round(P.air*2)/2)+'%',1)}
 let uwK=0;
 function uwUpdate(dt){ // underwater look: blue fog, darker with depth
  const d=P.pl,sub=P.mode==='ground'&&d&&d.water?d.wr-cam.position.distanceTo(d.c):0;
@@ -1173,7 +1192,7 @@ function uwUpdate(dt){ // underwater look: blue fog, darker with depth
   _cc.setHex(0x1a78a8).multiplyScalar(lum);
   scene.fog.color.lerp(_cc,uwK);scene.fog.density+=(.016+.012*cl01(sub/60)-scene.fog.density)*uwK;
   SKY.material.uniforms.top.value.lerp(_cc,uwK);SKY.material.uniforms.hor.value.lerp(_cc,uwK)}
- $('uw').style.opacity=uwK*.55}
+ setSt('uw','opacity',String(Math.round(uwK*.55*200)/200))}
 function groundStep(dt){
  const d=P.pl;if(d.ag){agGround(dt);return}
  if(d.water&&P.sw){swimStep(dt,d);return}
@@ -1228,6 +1247,7 @@ const ray=new T.Raycaster();ray.far=14;const clock=new T.Clock(),fwd=new T.Vecto
 function loop(){
  requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);_dt=dt;
  if(active&&!ui){
+  _ticked=true;
   if(P.mode==='ground')groundStep(dt);else spaceStep(dt);
   cam.getWorldDirection(fwd);
   atmoUpdate();uwUpdate(dt);breathTick(dt);
@@ -1240,12 +1260,12 @@ function loop(){
   STARS.position.copy(cam.position);SKY.position.copy(cam.position);
   placeSun();{const ds=cam.position.distanceTo(SUN);if(ds<SUN_R*1.12&&P.alive)hurt(1e6,'sun');if(ds<SUN_R*2){if(!hotW){hotW=true;say('☢ Deadly radiation ahead — turn back!')}}else hotW=false}
   const EDGE=SUN_DIST+SUN_R*1.6;if(cam.position.length()>EDGE){cam.position.setLength(EDGE);say('Edge of the world — nothing beyond')}
-  $('loc').innerHTML='📍 '+loc+'<br>'+clockStr()+(isNight?' · predators roam':'');
+  setH('loc','📍 '+loc+'<br>'+clockStr()+(isNight?' · predators roam':''));
   P.hg=Math.max(0,P.hg-.5*dt);if(P.hg<=0)hurt(3*dt,'hunger');else if(P.hg>60)P.hp=Math.min(100,P.hp+1*dt);
-  spawnTick(dt);planets.forEach(d=>d.animals.forEach(a=>stepAnimal(a,dt)));
+  spawnTick(dt);{const ar2=ANIM_R*ANIM_R;planets.forEach(d=>d.animals.forEach(a=>{if(a.base.distanceToSquared(cam.position)<ar2)stepAnimal(a,dt)}))}
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
-  $('tn').innerHTML=o?(o.kind==='animal'?'<img class="ico" src="img/heart.png"> ':'')+o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='animal'?'  ♥ '+Math.max(0,Math.ceil(o.hp))+'/'+o.mhp:''):'';
+  setH('tn',o?(o.kind==='animal'?'<img class="ico" src="img/heart.png"> ':'')+o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='animal'?'  ♥ '+Math.max(0,Math.ceil(o.hp))+'/'+o.mhp:''):'');
   aimObj=o;
   if(hold){const held=performance.now()-hold.t,now=performance.now(),hk=layout[HB+sel];
    if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
@@ -1253,7 +1273,7 @@ function loop(){
    else if(o&&(o.kind==='animal'||o.kind==='fish')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
    else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
-  $('hp').firstChild.style.width=Math.max(0,P.hp)+'%';$('hg').firstChild.style.width=P.hg+'%';
+  setSt('hp','width',(Math.round(Math.max(0,P.hp)*2)/2)+'%',1);setSt('hg','width',(Math.round(P.hg*2)/2)+'%',1);
   treeTick(dt);
  }
  syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
