@@ -16,6 +16,7 @@ canvas{display:block;position:fixed;inset:0;touch-action:none}
 #cross{left:50%;top:50%;width:18px;height:18px;margin:-9px;border:2px solid #fff;border-radius:50%;opacity:.6}
 #tgt{left:50%;top:calc(50% + 28px);transform:translateX(-50%);text-align:center;min-width:160px}
 #jb{left:50%;top:calc(50% + 66px);transform:translateX(-50%);width:150px;height:8px;border:1px solid var(--line);background:var(--panel);border-radius:4px;overflow:hidden;display:none}#jb i{display:block;height:100%;width:0;background:#9fd0ff}
+#eb{height:8px;width:120px;margin:4px auto 0;border:1px solid var(--line);background:rgba(0,0,0,.45);border-radius:4px;overflow:hidden;display:none}#eb i{display:block;height:100%;width:100%;background:var(--bad)}
 #pb{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px;overflow:hidden;display:none}#pb i{display:block;height:100%;width:0;background:var(--good)}
 #hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px}
 .slot{width:var(--sl);height:var(--sl);border:2px solid var(--line);background:var(--panel);border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center}
@@ -86,14 +87,14 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <div id="uw"></div>
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="oxw" style="display:none"><div>🫧 Breath</div><div class="bar" id="ox"><i></i></div></div><div id="loc"></div></div>
 <div id="cross" class="hud"></div><div id="jb" class="hud"><i></i></div>
-<div id="tgt" class="hud"><div id="tn"></div><div id="pb"><i></i></div></div>
+<div id="tgt" class="hud"><div id="tn"></div><div id="eb"><i></i></div><div id="pb"><i></i></div></div>
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -362,7 +363,7 @@ PDEF.forEach(d=>{
    fragmentShader:'uniform vec3 c;uniform vec3 uC;uniform vec3 uS;uniform float uR;uniform float uA;varying vec3 vW;void main(){vec3 rd=normalize(vW-cameraPosition);vec3 oc=uC-cameraPosition;float t=dot(oc,rd);float b=length(oc-rd*t);float x=(b-uR)/uA;float i=x<0.?1.:pow(clamp(1.-x,0.,1.),2.6);vec3 n=normalize(vW-uC);float lit=.3+.7*clamp(dot(n,uS)+.35,0.,1.);gl_FragColor=vec4(c*i*lit*1.15,1.0);}'}));
   am.position.copy(d.c);am.raycast=()=>{};scene.add(am);d.atmoMesh=am}
  makeClouds(d);
- d.animals=[];d.treeList=[];d.sprouts=[];d.fish=[];planets.push(d);
+ d.animals=[];d.treeList=[];d.sprouts=[];d.fish=[];d.snakes=[];planets.push(d);
  for(let i=0;i<d.trees;i++){const n=treeSpot(d,true);if(n)makeTree(d,n)}
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
 });
@@ -506,8 +507,111 @@ function fishTick(dt){
  for(const m of splashes){if(!m.on)continue;m.t+=dt;const k=m.t/1.1;if(k>=1){m.on=0;m.me.visible=false;continue}
   const nr=m.n;m.me.position.copy(nr).multiplyScalar(m.d.wr+.05).add(m.d.c);_M.makeBasis(_fx.crossVectors(nr,_fv.set(0,1,.01)).normalize(),nr,_fv2.crossVectors(_fx,nr).normalize());m.me.quaternion.setFromRotationMatrix(_M);
   m.me.rotateX(Math.PI/2);m.me.scale.setScalar(1+k*5);m.me.material.opacity=.7*(1-k)}}
+/* ---------- Ember chasm serpents: big 3D snakes that live ONLY on the floors of Ember's chasms (they never climb up to the surface).
+   Each one is a chain of spheres: the head picks a heading and every segment follows the one in front (that is what makes it slither).
+   Some lie still (asleep) until you come near; awake ones wander. When one notices you it wakes, rears up, chases you along the chasm floor and bites.
+   They spawn and despawn around you (never in view of the surface edge), have 50 HP and a health bar that only shows while you are hitting them. ---------- */
+const SN_MIN=18,SN_N=8,SN_SEGS=16,SN_WAKE=30,SN_LOSE=70,SN_WANDER=4.5,SN_CHASE=9.5,SN_BITE=12;
+let emberPl=null,snT=0;
+const snHeadG=new T.SphereGeometry(1,8,6),snBodyG=new T.SphereGeometry(1,7,5),snEyeG=new T.SphereGeometry(1,5,4),snTongG=new T.BoxGeometry(.07,.05,1);
+const snEyeM=new T.MeshBasicMaterial({color:0xffd23b}),snTongM=new T.MeshBasicMaterial({color:0xff3b3b}),
+ snOrange=new T.MeshStandardMaterial({color:0xd9652a,emissive:0x6a2208,flatShading:true,roughness:.8});
+function makeSnakeMesh(sc,N){
+ const g=new T.Group(),parts=[],rad=[];let tg=null;
+ for(let i=0;i<N;i++){
+  if(i===0){const h=new T.Group(),r=.78*sc;
+   const sk=new T.Mesh(snHeadG,mat(0x5a1d14));sk.scale.set(r*.95,r*.7,r*1.35);h.add(sk);
+   for(const sd of[-1,1]){const e=new T.Mesh(snEyeG,snEyeM);e.scale.setScalar(r*.2);e.position.set(sd*r*.55,r*.3,r*.78);h.add(e)}
+   tg=new T.Group();tg.position.set(0,-r*.1,r*1.3);
+   for(const sd of[-1,1]){const m=new T.Mesh(snTongG,snTongM);m.scale.set(r*.9,r*.9,r*.8);m.position.set(sd*r*.07,0,r*.4);m.rotation.y=sd*.3;tg.add(m)}
+   h.add(tg);g.add(h);parts.push(h);rad.push(r*.95);continue}
+  const r=.62*sc*(1-.65*Math.pow(i/N,1.2)),m=new T.Mesh(snBodyG,i%4===2?snOrange:mat(i%2?0x4a1710:0x2a0d0a));
+  m.scale.setScalar(r);g.add(m);parts.push(m);rad.push(r)}
+ g.userData={parts,rad,tg};return g}
+function snakeSpot(d){
+ for(let i=0;i<40;i++){
+  const b=cam.position.clone().sub(d.c).normalize(),ax=rndDir();ax.addScaledVector(b,-ax.dot(b)).normalize();
+  const n=b.applyAxisAngle(ax,rnd(40,260)/d.R);
+  if(cDepth(d,n)<SN_MIN+12)continue; // only the deep floor
+  if(d.snakes.some(s=>s.n.dot(n)>Math.cos(18/d.R)))continue;
+  if(n.clone().multiplyScalar(surfR(d,n)).add(d.c).distanceTo(cam.position)<35)continue;
+  return n}
+ return null}
+function spawnSnake(d,n,rest){
+ const sc=rnd(1.15,1.7),g=makeSnakeMesh(sc,SN_SEGS),u=g.userData,RR=d.R-30,gap=u.rad.map((r,i)=>i?(r+u.rad[i-1])*.62/RR:0),total=gap.reduce((a,b)=>a+b,0);
+ let t=null;
+ for(let k=0;k<8&&!t;k++){const v=rndDir();v.addScaledVector(n,-v.dot(n)).normalize();
+  const tail=n.clone().applyAxisAngle(new T.Vector3().crossVectors(n,v).normalize(),-total);if(cDepth(d,tail)>=SN_MIN)t=v} // the whole body must fit in the deep part
+ if(!t)return null;
+ const segs=[n.clone()],ax=new T.Vector3().crossVectors(n,t).normalize();
+ for(let i=1;i<SN_SEGS;i++)segs.push(segs[i-1].clone().applyAxisAngle(ax,-gap[i]));
+ const pos=segs.map(()=>new T.Vector3());
+ const s={kind:'snake',name:'Chasm Serpent 🐍',time:1.6,pl:d,hp:50,mhp:50,sc,n:segs[0],t,segs,gap,rad:u.rad,pos,parts:u.parts,tg:u.tg,hw:new T.Vector3(),
+  state:rest?'rest':'wander',st:rnd(6,18),tt:rnd(1,3),tw:0,ph:rnd(0,6.3),cd:0,wk:0,blk:0,lift:0,lunge:0,life:rnd(90,220),
+  cs:pos.map((p,i)=>({p,r:u.rad[i]*1.1}))};
+ reg(g,s);d.snakes.push(s);snakePose(d,s,0);return s}
+function despawnSnake(s){unreg(s);const l=s.pl.snakes,i=l.indexOf(s);if(i>=0)l.splice(i,1)}
+const _nk1=new T.Vector3(),_nk2=new T.Vector3(),_nk3=new T.Vector3(),_nkq=new T.Quaternion(),_nkx=new T.Vector3(),_nkm=new T.Matrix4();
+const SN_OFFS=[0,.6,-.6,1.2,-1.2,2,-2,Math.PI];
+function snakeMove(d,s,step){ // advance the head 'step' radians along its heading; if the way is blocked (the ground there is too shallow = the chasm edge) it veers away. 0 = stuck
+ const cur=cDepth(d,s.n);
+ for(const off of SN_OFFS){
+  _nk1.copy(s.t);if(off)_nk1.applyAxisAngle(s.n,off);
+  _nkx.crossVectors(s.n,_nk1).normalize();_nkq.setFromAxisAngle(_nkx,step);
+  _nk2.copy(s.n).applyQuaternion(_nkq);
+  const nd=cDepth(d,_nk2);
+  if(nd>=SN_MIN||nd>cur+.05){s.n.copy(_nk2);s.t.copy(_nk1).applyQuaternion(_nkq);s.t.addScaledVector(s.n,-s.t.dot(s.n)).normalize();return off?2:1}}
+ return 0}
+function chainFollow(cur,prev,gap){const a=Math.acos(Math.max(-1,Math.min(1,cur.dot(prev))));if(a<=gap)return;_nkx.crossVectors(cur,prev);if(_nkx.lengthSq()<1e-14)return;_nkx.normalize();cur.applyQuaternion(_nkq.setFromAxisAngle(_nkx,a-gap)).normalize()}
+function snakePose(d,s,dt){ // body segments -> world positions on the chasm floor, head orientation, tongue
+ for(let i=0;i<s.segs.length;i++){const q=s.segs[i];s.pos[i].copy(q).multiplyScalar(surfR(d,q)+s.rad[i]*.85).add(d.c)}
+ const lk=s.lunge>0?Math.sin(s.lunge/.28*Math.PI)*1.6:0;
+ s.pos[0].addScaledVector(s.n,s.lift+(s.state==='rest'?Math.sin(s.ph*1.5)*.08*s.sc:0)).addScaledVector(s.t,lk);
+ s.hw.copy(s.pos[0]);s.root.position.copy(s.pos[0]);
+ for(let i=1;i<s.parts.length;i++)s.parts[i].position.copy(s.pos[i]).sub(s.pos[0]);
+ const h=s.parts[0];h.position.set(0,0,0);
+ _nk1.crossVectors(s.n,s.t).normalize();_nkm.makeBasis(_nk1,s.n,s.t);h.quaternion.setFromRotationMatrix(_nkm);h.rotateX(-Math.min(.8,s.lift/s.sc*.7));
+ const fl=s.state==='chase'?Math.sin(s.ph*9)>0:s.state==='rest'?Math.sin(s.ph*2.2)>.75:Math.sin(s.ph*3.5)>.6;
+ s.tg.scale.z=fl?1:.08}
+function snakeStep(d,s,dt){
+ const now=performance.now(),RR=d.R-30;s.cd-=dt;s.ph+=dt;
+ const dist=cam.position.distanceTo(s.hw),prov=now-(s.ht||0)<6000;
+ if(s.state==='chase'){if(!P.alive||(dist>SN_LOSE&&!prov)){s.state='wander';s.st=rnd(4,10)}}
+ else if(P.alive&&(dist<SN_WAKE||(prov&&dist<SN_LOSE))){s.state='chase';s.wk=.7} // it noticed you: wakes up and rears
+ let sp=0,turn=0;
+ if(s.wk>0)s.wk-=dt;
+ else if(s.state==='chase'){
+  sp=SN_CHASE;
+  _nk3.copy(cam.position).sub(s.hw);_nk3.addScaledVector(s.n,-_nk3.dot(s.n));
+  if(_nk3.lengthSq()>1e-6){_nk3.normalize();const ang=Math.atan2(s.n.dot(_nk2.crossVectors(s.t,_nk3)),s.t.dot(_nk3));turn=Math.max(-4*dt,Math.min(4*dt,ang))}
+  if(dist<2.6)sp=0;
+  if(dist<4.6&&s.cd<=0&&P.alive){hurt(SN_BITE,'snake',s.name);s.cd=1.1;s.lunge=.28}}
+ else if(s.state==='wander'){
+  sp=SN_WANDER;s.tt-=dt;if(s.tt<=0){s.tt=rnd(1.5,4);s.tw=rnd(-.7,.7)}turn=s.tw*dt;
+  s.st-=dt;if(s.st<=0){if(Math.random()<.35){s.state='rest';s.st=rnd(6,16)}else s.st=rnd(6,14)}}
+ else{s.st-=dt;if(s.st<=0){s.state='wander';s.st=rnd(8,18)}} // asleep: lies still
+ if(sp>0)turn+=Math.sin(s.ph*(s.state==='chase'?7:4.2))*dt*(s.state==='chase'?.9:.7); // the S-shaped slither
+ if(turn)s.t.applyAxisAngle(s.n,turn);
+ let moved=1;if(sp>0)moved=snakeMove(d,s,sp*dt/RR);
+ s.blk=sp>0&&!moved?.3:Math.max(0,s.blk-dt); // stuck at the foot of the wall: it rears up and hisses
+ if(s.kb>0){const k=Math.min(dt,s.kb);s.kb-=k;_nk3.copy(s.t);s.t.copy(s.kd);snakeMove(d,s,KB_SPEED*k/RR);s.t.copy(_nk3).addScaledVector(s.n,-s.t.dot(s.n)).normalize()}
+ if(s.lunge>0)s.lunge=Math.max(0,s.lunge-dt);
+ for(let i=1;i<s.segs.length;i++)chainFollow(s.segs[i],s.segs[i-1],s.gap[i]);
+ s.lift+=(((s.state==='rest'?.2:(s.wk>0||s.blk>0)?.95:0)*s.sc)-s.lift)*Math.min(1,dt*5);
+ if(s.root.scale.x>1.001)s.root.scale.setScalar(Math.max(1,s.root.scale.x-dt*1.2)); // hit squash fades
+ snakePose(d,s,dt)}
+function snakeTick(dt){
+ if(!emberPl)emberPl=planets.find(p=>p.name==='Ember');
+ const d=emberPl;if(!d||!d.chasm)return;
+ if(cam.position.distanceTo(d.c)>d.R+500)return; // nobody around: they sleep (frozen) and are replaced when you come back
+ snT-=dt;
+ if(snT<=0){snT=2;
+  for(let i=d.snakes.length-1;i>=0;i--){const s=d.snakes[i],q=s.hw.distanceTo(cam.position);s.life-=2;
+   if(q>340||(s.life<=0&&q>60&&s.state!=='chase'))despawnSnake(s)} // far away or old: they vanish out of sight
+  for(let k=0;k<3&&d.snakes.length<SN_N;k++){const n=snakeSpot(d);if(n)spawnSnake(d,n,Math.random()<.4)}}
+ for(const s of d.snakes)if(s.hw.distanceToSquared(cam.position)<260*260)snakeStep(d,s,dt)}
 function treeTick(dt){
- sproutTick(dt);fishTick(dt);doorTick(dt);
+ sproutTick(dt);fishTick(dt);snakeTick(dt);doorTick(dt);
  for(let i=regrow.length-1;i>=0;i--){const r=regrow[i];r.t-=dt;if(r.t>0)continue;
   const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
  for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));treeCS(o,Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
@@ -799,6 +903,7 @@ function spinPlanet(d,ang,full,force){
  const cp=cam.position,owe=o=>{if(o.sa===undefined)o.sa=d.sp-ang;if(!far&&!(o.base.distanceToSquared(cp)<TREE_NEAR2))return null;const a=d.sp-o.sa;if(!a)return null;o.sa=d.sp;return _sq2.setFromAxisAngle(d.axis,a)};
  for(const o of d.treeList){const k=owe(o);if(!k)continue;o.n.applyQuaternion(k);o.base.sub(c).applyQuaternion(k).add(c);o.root.position.copy(o.base);o.root.quaternion.premultiply(k);treeCS(o,o.root.scale.x)}
  for(const f of d.fish){f.n.applyQuaternion(q);f.t.applyQuaternion(q)}
+ for(const s of d.snakes||[]){for(const v of s.segs)v.applyQuaternion(q);s.t.applyQuaternion(q);s.hw.sub(d.c).applyQuaternion(q).add(d.c)}
  for(const m of splashes)if(m.on&&m.d===d)m.n.applyQuaternion(q);
  for(const o of d.sprouts){const k=owe(o);if(!k)continue;o.n.applyQuaternion(k);o.base.sub(c).applyQuaternion(k).add(c);o.q.premultiply(k);o.root.position.copy(o.base);o.root.quaternion.copy(o.q)}
  for(const a of d.animals){const k=owe(a);if(!k)continue;a.n.applyQuaternion(k);a.t.applyQuaternion(k);setBase(a);orient(a);animalCS(a)}
@@ -924,6 +1029,7 @@ function hurt(x,why,by){P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;s
 const DEATHS={
  drown:['You forgot to come up for air. 🫧','Glub glub. The ocean wins.','You tried to breathe water. It did not go well.','Hold Space to rise next time! 🌊'],
  pred:['You tried to help a {n}. It helped itself to you.','You tried to pet a {n}. It had other plans.','Plot twist: you were the snack. 🍖','The {n} says thanks for the meal.'],
+ snake:['You tried to pet a {n}. It was not a noodle. 🐍','The {n} says hello. Fatally.','You went down the snake hole. The snake hole was occupied.','Ssssurprise! You were dinner.'],
  hunger:['You skipped lunch. Forever. 🍎','Food was RIGHT there. You just… didn’t.','Your stomach filed a complaint. Fatal.','Died of hunger. Apples exist, you know.'],
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
@@ -1089,14 +1195,14 @@ function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>(P.sup||0)+.05)return;P.hv=HO
 let aimObj=null,hitCD=0;
 function actDown(){ // 5 / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
  if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
- const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&(aimObj.kind==='animal'||aimObj.kind==='fish')){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
+ const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&(aimObj.kind==='animal'||aimObj.kind==='fish'||aimObj.kind==='snake')){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
 function actUp(){if(hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}}
 /* melee: bare hand 1 dmg, pickaxe/axe 2, spear 5 (peaceful 8 HP, predators 14 HP) */
 function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
  const sp=inv.spear>0,dmg=sp?5:(inv.pickaxe>0||inv.axe>0)?2:1,reach=sp?8:6;
  const gap=Math.min(...o.cs.map(c=>cam.position.distanceTo(c.p)-c.r));
  if(gap>reach){say('Too far — get closer');hitCD=now+400;return}
- hitCD=now+300;o.hp-=dmg;if(!o.dying)o.root.scale.setScalar(1.15);
+ hitCD=now+300;o.hp-=dmg;o.ht=now;if(!o.dying)o.root.scale.setScalar(1.15);
  if(o.hp<=0){finish(o);aimObj=null}
  else if(o.n&&!o.dying){ // knock the creature back a little, away from the player
   const away=cam.position.clone().sub(o.root.position);away.addScaledVector(o.n,-away.dot(o.n));
@@ -1113,6 +1219,7 @@ function finish(o){
  if(o.kind==='block'){if(o.door){const dr=o.door,oth=dr.lo===o?dr.hi:dr.lo;unreg(oth);blocks.delete(oth.key);const di=doors.indexOf(dr);if(di>=0)doors.splice(di,1)}blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
+ else if(o.kind==='snake'){despawnSnake(o);inv.food+=3;let m='+3 meat';if(Math.random()<.3){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m)}
  else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);inv.fish++;say('+1 raw fish 🐟')}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred||Math.random()<.25){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m);const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
 }
@@ -1324,12 +1431,14 @@ function loop(){
   spawnTick(dt);{const ar2=ANIM_R*ANIM_R;planets.forEach(d=>d.animals.forEach(a=>{if(a.base.distanceToSquared(cam.position)<ar2)stepAnimal(a,dt)}))}
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
-  setH('tn',o?(o.kind==='animal'?'<img class="ico" src="img/heart.png"> ':'')+o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='animal'?'  ♥ '+Math.max(0,Math.ceil(o.hp))+'/'+o.mhp:''):'');
+  setH('tn',o?o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='snake'?' (dangerous!)':''):'');
+  {const sb=o&&(o.kind==='animal'||o.kind==='snake')&&o.ht&&performance.now()-o.ht<4500; // a creature's health bar (no numbers) shows only while you are fighting it
+   setSt('eb','display',sb?'block':'none');if(sb)setSt('eb','width',(Math.round(Math.max(0,o.hp)/o.mhp*50)*2)+'%',1)}
   aimObj=o;
   if(hold){const held=performance.now()-hold.t,now=performance.now(),hk=layout[HB+sel];
    if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
     if(held>250&&hk&&ITEMS[hk].use){hold.e=(hold.e||0)+dt/.7;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.e*100)+'%';if(hold.e>=1){hold.e=0;useItem(hk)}}else $('pb').style.display='none'}
-   else if(o&&(o.kind==='animal'||o.kind==='fish')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
+   else if(o&&(o.kind==='animal'||o.kind==='fish'||o.kind==='snake')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
    else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   setSt('hp','width',(Math.round(Math.max(0,P.hp)*2)/2)+'%',1);setSt('hg','width',(Math.round(P.hg*2)/2)+'%',1);
