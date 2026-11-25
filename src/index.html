@@ -17,6 +17,7 @@ canvas{display:block;position:fixed;inset:0;touch-action:none}
 #tgt{left:50%;top:calc(50% + 28px);transform:translateX(-50%);text-align:center;min-width:160px}
 #jb{left:50%;top:calc(50% + 66px);transform:translateX(-50%);width:150px;height:8px;border:1px solid var(--line);background:var(--panel);border-radius:4px;overflow:hidden;display:none}#jb i{display:block;height:100%;width:0;background:#9fd0ff}
 #eb{height:8px;width:120px;margin:4px auto 0;border:1px solid var(--line);background:rgba(0,0,0,.45);border-radius:4px;overflow:hidden;display:none}#eb i{display:block;height:100%;width:100%;background:var(--bad)}
+#sf{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:7;display:flex;align-items:center;justify-content:center;color:#9fb4ff;font:700 30px sans-serif;letter-spacing:6px}
 #pb{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:4px;overflow:hidden;display:none}#pb i{display:block;height:100%;width:0;background:var(--good)}
 #hot{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px}
 .slot{width:var(--sl);height:var(--sl);border:2px solid var(--line);background:var(--panel);border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center}
@@ -87,6 +88,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <div id="uw"></div>
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="oxw" style="display:none"><div>🫧 Breath</div><div class="bar" id="ox"><i></i></div></div><div id="loc"></div></div>
 <div id="cross" class="hud"></div><div id="jb" class="hud"><i></i></div>
+<div id="sf"></div>
 <div id="tgt" class="hud"><div id="tn"></div><div id="eb"><i></i></div><div id="pb"><i></i></div></div>
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
 <div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
@@ -94,7 +96,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -702,10 +704,11 @@ for(let i=0;i<200;i++){
 }
 
 /* ---------- blocks / inventory ---------- */
-const BT={wood:{c:0xb5793f,n:'Wood Block'},stone:{c:0x8a8f99,n:'Stone Block'},hull:{c:0x4aa3df,n:'Hull Block'},door:{c:0x9a6a3a,n:'Door'}};
+const BT={wood:{c:0xb5793f,n:'Wood Block'},stone:{c:0x8a8f99,n:'Stone Block'},hull:{c:0x4aa3df,n:'Hull Block'},door:{c:0x9a6a3a,n:'Door'},tube:{c:0x2a7fff,n:'Sleeping Tube'}};
 const bgeo=new T.BoxGeometry(2,2,2),egeo=new T.EdgesGeometry(bgeo),emat=new T.LineBasicMaterial({color:0x000000,transparent:true,opacity:.5});
 const TL=new T.TextureLoader();for(const k in BT){BT[k].m=new T.MeshStandardMaterial({map:TL.load('img/tex_'+k+'.png'),roughness:1})}
 BT.door.m.map.magFilter=BT.door.m.map.minFilter=T.NearestFilter;BT.door.m.map.generateMipmaps=false;
+BT.tube.m.map.magFilter=BT.tube.m.map.minFilter=T.NearestFilter;BT.tube.m.map.generateMipmaps=false;
 /* ---------- icons drawn by code (no image files) ---------- */
 const imgSrc=s=>s.startsWith('data:')?s:'img/'+s+'.png';
 function shade(c,f){const o=new T.Color(c).multiplyScalar(f);return '#'+[o.r,o.g,o.b].map(v=>Math.round(Math.min(1,v)*255).toString(16).padStart(2,'0')).join('')}
@@ -809,6 +812,21 @@ function toggleDoor(dr){
 const DOORZ=4.5; // within this distance of an open door: no auto-sticking to Gravity Generator blocks, slimmer body, firmer floor grip
 function nearOpenDoor(p,r){for(const dr of doors){if(dr.open&&(dr.lo.pos.distanceToSquared(p)<r*r||dr.hi.pos.distanceToSquared(p)<r*r))return true}return false}
 function doorTick(dt){for(const dr of doors){const tg=dr.open?dr.sw*Math.PI/2:0;if(Math.abs(tg-dr.ang)>.001){dr.ang+=(tg-dr.ang)*Math.min(1,dt*9);dr.pv.forEach(h=>h.rotation.y=dr.ang)}}}
+/* ---------- Sleeping Tube: an upright cylinder 2 cells high (two stacked cells, like a door) wearing your blue pixel sheet (img/tex_tube.png: tall side strip + two round caps).
+   Tap it to sleep (see useTube). Breaking it (hold) gives the item back. ---------- */
+const TUBE_R=.95,TUBE_W=1254;
+function tubeGeo(upper){
+ const g=new T.CylinderGeometry(TUBE_R,TUBE_R,2,20,1),uv=g.attributes.uv,nT=21*2,nC=20+21,y0=17,y1=1233,ym=(y0+y1)/2,yt=upper?y0:ym,yb=upper?ym:y1;
+ for(let i=0;i<uv.count;i++){const u=uv.getX(i),v=uv.getY(i);
+  if(i<nT)uv.setXY(i,(23+u*(846-23))/TUBE_W,1-(yb-(yb-yt)*v)/TUBE_W); // side: this half of the tall strip
+  else{const cy=i<nT+nC?245:971;uv.setXY(i,(1054-190+u*380)/TUBE_W,1-(cy-190+(1-v)*380)/TUBE_W)}} // top / bottom cap: the matching round picture
+ return g}
+const tubeLoG=tubeGeo(false),tubeHiG=tubeGeo(true);
+function addTube(s,i,j,k){
+ const tb={},half=top=>{const jj=top?j+1:j,key=keyOf(s,i,jj,k),p=cellPos(s,i,jj,k);p.hx=p.hz=TUBE_R;
+  const root=new T.Group();root.add(new T.Mesh(top?tubeHiG:tubeLoG,BT.tube.m));root.position.copy(p);root.quaternion.copy(s.q);
+  const o={kind:'block',type:'tube',key,name:'Sleeping Tube',time:.9,pos:p,s,c:[i,jj,k],tube:tb,top};reg(root,o);blocks.set(key,o);return o};
+ tb.lo=half(false);tb.hi=half(true);return tb.lo}
 let agArr=[],agDirty=true;
 const agList=()=>{if(agDirty){agArr=[...blocks.values()].filter(o=>o.ag&&!o.open);agDirty=false}return agArr};
 function markAG(o){if(o.ag)return false;o.ag=true;agDirty=true;blocksVer++;o.name=BT[o.type].n+' (Gravity Generator)';const g=new T.Mesh(agGeo,agMat);g.raycast=()=>{};g.scale.setScalar(1.04);g.add(new T.LineSegments(egeo,agEdge));o.root.add(g);return true}
@@ -820,9 +838,9 @@ function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest 
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=stk;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const inv={tube:0,leather:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const ITEMS={
- door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
+ door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},tube:{n:'Sleeping Tube',img:'tube',d:'Place it (2 blocks high), then tap it to sleep. Sleep at night and you wake at day'},leather:{n:'Leather',img:'leather'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
  food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
@@ -830,7 +848,7 @@ const ITEMS={
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 3x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 3x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','fish','plank','wood','stone','hull','door','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
+const ORDER=['food','fish','plank','wood','stone','hull','door','tube','leather','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -848,7 +866,9 @@ function place(type){
  for(const d of planets){ray.far=16;ray.set(cam.position,fwd);const hh=ray.intersectObject(d.mesh,false)[0];if(hh&&hh.distance<tp&&hh.distance<16){tp=hh.distance;pc=d;pn=hh.point.clone().sub(d.c).normalize()}}
  let s,i=0,j=0,k=0,fresh=false;
  if(bh&&bh.distance<=tp){ // against a block you aim at: same grid, next cell over
-  const o=bh.object.userData.o,n=o.door?bh.face.normal.clone().transformDirection(bh.object.matrixWorld).applyQuaternion(o.s.iq):bh.face.normal;s=o.s;i=o.c[0]+Math.round(n.x);j=o.c[1]+Math.round(n.y);k=o.c[2]+Math.round(n.z)}
+  const o=bh.object.userData.o;let n=(o.door||o.tube)?bh.face.normal.clone().transformDirection(bh.object.matrixWorld).applyQuaternion(o.s.iq):bh.face.normal;
+  if(o.tube){const ax=Math.abs(n.x),ay=Math.abs(n.y),az=Math.abs(n.z);n=ax>=ay&&ax>=az?new T.Vector3(Math.sign(n.x),0,0):ay>=az?new T.Vector3(0,Math.sign(n.y),0):new T.Vector3(0,0,Math.sign(n.z))} // a round side: snap to the nearest grid direction
+  s=o.s;i=o.c[0]+Math.round(n.x);j=o.c[1]+Math.round(n.y);k=o.c[2]+Math.round(n.z)}
  else{
   const ref=cam.position.clone().addScaledVector(fwd,pc?tp-.05:7); // the air just in front of the ground you aim at
   let best=null,bd=256; // join a grid if a block of it is within 16 units and its 'up' is still within ~10 degrees of the ground here
@@ -863,11 +883,12 @@ function place(type){
  }
  const p=cellPos(s,i,j,k),key=keyOf(s,i,j,k);
  let dax=0,dsw=1;if(type==='door'){const q=doorOrient(s,i,j,k);dax=q.ax;dsw=q.sw;p.hx=dax?.2:1;p.hz=dax?1:.2}
+ if(type==='tube')p.hx=p.hz=TUBE_R;
  // only refuse a cell that would really overlap you: test your actual collision spheres (head/body + feet on the ground, one bigger sphere in space) with a hair of clearance, so a block right next to you is allowed but never traps you
  if(blocks.has(key)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04))||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
- if(type==='door'){const p2=cellPos(s,i,j+1,k);p2.hx=p.hx;p2.hz=p.hz;if(blocks.has(keyOf(s,i,j+1,k))||playerSph().some(q=>sbDist2(q.p,p2)<(q.r+.04)*(q.r+.04))||cubeBusy(p2)){say('A door needs a free spot 2 blocks high');return}}
+ if(type==='door'||type==='tube'){const p2=cellPos(s,i,j+1,k);p2.hx=p.hx;p2.hz=p.hz;if(blocks.has(keyOf(s,i,j+1,k))||playerSph().some(q=>sbDist2(q.p,p2)<(q.r+.04)*(q.r+.04))||cubeBusy(p2)){say('A '+(type==='door'?'door':'sleeping tube')+' needs a free spot 2 blocks high');return}}
  if(!s.id)regStruct(s);
- const o=type==='door'?addDoor(s,i,j,k,dax,dsw,false):addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
+ const o=type==='door'?addDoor(s,i,j,k,dax,dsw,false):type==='tube'?addTube(s,i,j,k):addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
 }
 /* ---------- player ---------- */
 const P={hp:100,hg:100,alive:true,vel:new T.Vector3(),yaw:-1.09,pitch:0,mode:'space',pl:null,hd:new T.Vector3(1,0,0),launch:0,up:new T.Vector3(0,1,0),agT:0,hh:0,hv:0,esc:null,escT:0,escUp:new T.Vector3(0,1,0),fall:false,vu:new T.Vector3(0,1,0),vsm:false,sw:false,swY:0,sv:0,air:100};
@@ -1006,6 +1027,7 @@ function loadSave(){
     const pos=cellPos(g,i,j,k);
     if(planets.some(p=>{const v=pos.clone().sub(p.c);return v.length()<p.R-.9})){refund[type]=(refund[type]||0)+1;return}
     if(type==='door'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addDoor(g,i,j,k,dax?1:0,dsw===-1?-1:1,!!op);if(ag){markAG(lo);markAG(lo.door.hi)}}else refund.door=(refund.door||0)+1;return}
+    if(type==='tube'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addTube(g,i,j,k);if(ag){markAG(lo);markAG(lo.tube.hi)}}else refund.tube=(refund.tube||0)+1;return}
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
   }else(d.blocks||[]).forEach(a=>{if(Array.isArray(a)&&BT[a[0]])refund[a[0]]=(refund[a[0]]||0)+1}); // old saves: planets moved and grew, so their blocks come back to the inventory
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
@@ -1025,7 +1047,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 let active=false,ui=false,locked=false,drag=false;
 const keys={};
 function say(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,2200)}
-function hurt(x,why,by){P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
+function hurt(x,why,by){if(SL.on)return; // asleep in the tube: nothing can hurt you
+ P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
 const DEATHS={
  drown:['You forgot to come up for air. 🫧','Glub glub. The ocean wins.','You tried to breathe water. It did not go well.','Hold Space to rise next time! 🌊'],
  pred:['You tried to help a {n}. It helped itself to you.','You tried to pet a {n}. It had other plans.','Plot twist: you were the snack. 🍖','The {n} says thanks for the meal.'],
@@ -1034,7 +1057,7 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
@@ -1043,7 +1066,7 @@ const RECIPES={
  Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 3x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 3x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
  Materials:[{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Door (1 plank)',give:{door:1},cost:{plank:1},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Door (3 wood blocks)',give:{door:1},cost:{wood:3},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
  Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Cooked Fish (plank)',give:{cfish:1},cost:{fish:1,plank:1},d:'+45 hunger'},{n:'Cooked Fish (wood block)',give:{cfish:1},cost:{fish:1,wood:1},d:'+45 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
- Comfort:[{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
+ Comfort:[{n:'Sleeping Tube',give:{tube:1},cost:{leather:2,wood:1},d:'Tap it to sleep: night passes, you wake at day',img:'tube'},{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
 function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
  for(let i=0;i<NS;i++){const k=layout[i];if(k&&(!(inv[k]>0)||layout.indexOf(k)!==i))layout[i]=null}
  for(const k of ORDER)if(inv[k]>0&&!layout.includes(k)){let e=layout.indexOf(null,HB);if(e<0)e=layout.indexOf(null);if(e>=0)layout[e]=k}
@@ -1130,7 +1153,7 @@ addEventListener('keydown',e=>{
  const c=e.code;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c))e.preventDefault();
  if(c==='Escape'){if(ui)closeMenu(false);setActive(false);return}
  if(!active||e.repeat)return;keys[c]=true;
- if(c==='Digit0'||c==='KeyE'||c==='Numpad0')openMenu(!ui);
+ if((c==='Digit0'||c==='KeyE'||c==='Numpad0')&&!SL.on)openMenu(!ui);
  else if(ui)return; // while the inventory is open only E / 0 / Esc do anything
  else if(c in HKEY)sel=HKEY[c];
  else if(c==='BracketLeft')sel=(sel+8)%9;
@@ -1194,7 +1217,7 @@ if(COARSE)enableTouch();else addEventListener('touchstart',enableTouch,{once:tru
 function hop(){if(P.mode!=='ground'||P.pl.ag||P.hh>(P.sup||0)+.05)return;P.hv=HOPV;P.hh+=.001}
 let aimObj=null,hitCD=0;
 function actDown(){ // 5 / left-click: tap = use / place, hold = break or keep eating, on a creature = hit
- if(hold)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
+ if(hold||SL.on)return;hold={t:performance.now(),broke:false,o:null,p:0,nh:0};
  const hk=layout[HB+sel];if(!(hk&&ITEMS[hk]&&ITEMS[hk].use)&&aimObj&&(aimObj.kind==='animal'||aimObj.kind==='fish'||aimObj.kind==='snake')){hold.broke=true;hit(aimObj);hold.nh=performance.now()+450}}
 function actUp(){if(hold){if(!hold.broke&&performance.now()-hold.t<250&&active&&!ui)tap();hold=null;$('pb').style.display='none'}}
 /* melee: bare hand 1 dmg, pickaxe/axe 2, spear 5 (peaceful 8 HP, predators 14 HP) */
@@ -1209,6 +1232,7 @@ function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
   if(away.lengthSq()>1e-6){o.kd=away.normalize().negate();o.kb=KB_TIME;o.hop=KB_TIME}}}
 function tap(){ // use whatever is in the selected hotbar slot; aimed at a door within reach = open / close it
  if(aimObj&&aimObj.door&&aimObj.pos.distanceTo(cam.position)<7){toggleDoor(aimObj.door);return}
+ if(aimObj&&aimObj.tube&&aimObj.pos.distanceTo(cam.position)<7){useTube();return}
  const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
  if(BT[k]){if(inv[k]>0)place(k);return} // (the door item is a BT entry too)
@@ -1216,7 +1240,7 @@ function tap(){ // use whatever is in the selected hotbar slot; aimed at a door 
 function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?1:.3):o.kind==='tree'?(inv.axe>0?1:.3):o.kind==='animal'?(inv.spear>0?2.5:1):1}
 function finish(o){
  unreg(o);const D={};
- if(o.kind==='block'){if(o.door){const dr=o.door,oth=dr.lo===o?dr.hi:dr.lo;unreg(oth);blocks.delete(oth.key);const di=doors.indexOf(dr);if(di>=0)doors.splice(di,1)}blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
+ if(o.kind==='block'){if(o.door){const dr=o.door,oth=dr.lo===o?dr.hi:dr.lo;unreg(oth);blocks.delete(oth.key);const di=doors.indexOf(dr);if(di>=0)doors.splice(di,1)}if(o.tube){const tb=o.tube,oth=tb.lo===o?tb.hi:tb.lo;unreg(oth);blocks.delete(oth.key)}blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else if(o.kind==='snake'){despawnSnake(o);inv.food+=3;let m='+3 meat';if(Math.random()<.3){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m)}
@@ -1410,11 +1434,29 @@ function leave(){ // off the ground and away: through the clouds into free space
 }
 /* ---------- loop ---------- */
 const ray=new T.Raycaster();ray.far=14;const clock=new T.Clock(),fwd=new T.Vector3(),rgt=new T.Vector3();
+/* ---------- sleeping: tap a tube -> screen fades to black -> (at night) time runs on until it is day where you stand -> fade back in. Then ~40 s before you can sleep again.
+   Asleep you cannot move or be hurt. Using it in the day just rests you (no time skips) and you wake in the day. ---------- */
+const SL={on:false,ph:'',t:0,cd:0},SLEEP_CD=40000;
+function skipToDay(){ // spin the worlds on (like time passing) until the sun is up where you stand
+ const d=ATM.d;if(!d||P.mode!=='ground')return;
+ const el=()=>dayOf(_lu.copy(P.up).dot(_ls.copy(SUN).sub(cam.position).normalize()));
+ if(el()>=.55)return;
+ for(let i=0;i<140&&el()<.7;i++){worldTime+=15;spinWorld(15)}
+ dayA=1;save()}
+function useTube(){
+ if(SL.on||!P.alive)return;
+ const now=performance.now();if(now<SL.cd){say('😴 You are not sleepy yet ('+Math.ceil((SL.cd-now)/1000)+'s)');return}
+ SL.on=true;SL.ph='in';SL.t=0;hold=null;$('pb').style.display='none'}
+function sleepTick(dt){
+ const f=$('sf');
+ if(SL.ph==='in'){SL.t+=dt/1.2;f.style.opacity=Math.min(1,SL.t);if(SL.t>=1){SL.ph='dark';SL.t=0;f.textContent='Zzz…';skipToDay()}}
+ else if(SL.ph==='dark'){SL.t+=dt;if(SL.t>=1.3){SL.ph='out';SL.t=0;f.textContent=''}}
+ else{SL.t+=dt/1.6;f.style.opacity=Math.max(0,1-SL.t);if(SL.t>=1){SL.on=false;SL.ph='';SL.cd=performance.now()+SLEEP_CD;say('☀ You wake up rested')}}}
 function loop(){
  requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);_dt=dt;
  if(active&&!ui){
   _ticked=true;
-  if(P.mode==='ground')groundStep(dt);else spaceStep(dt);
+  if(SL.on)sleepTick(dt);else if(P.mode==='ground')groundStep(dt);else spaceStep(dt);
   cam.getWorldDirection(fwd);
   atmoUpdate();uwUpdate(dt);breathTick(dt);
   planets.forEach(d=>{d.atmoMesh.visible=!ATM.d&&cam.position.distanceTo(d.c)>d.RA});
