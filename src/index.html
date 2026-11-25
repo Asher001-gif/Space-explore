@@ -192,38 +192,43 @@ function buildWater(d){
     const dist=Math.sqrt(cx*cx+cyy*cyy+cz*cz)*R,w=A.w+(B.w-A.w)*t,k=1-dist/(w*1.7);if(k<=0)continue;
     const dep=(3.4+w*.3)*ss(k),idx=j*WGW+ia;if(dep>g[idx])g[idx]=dep}}}
  d.wr=d.R-.05-SEA;return{g}}
-/* ---------- chasms (Ember): a few long, deep cracks. Same idea as the water: a fixed seeded depth grid in the planet's own frame (d.chasm.g, depth below normal ground).
-   Each crack is a meandering walk that pinches shut at both ends; some fork. Walls are steep (see chasmMove: you have to climb them), the floor is flat and dark. ---------- */
+/* ---------- chasms (Ember): deep cracks covering about CH_COVER (30%) of the planet. Same idea as the water: a fixed seeded depth grid in the planet's own frame
+   (d.chasm.g, depth below normal ground). Each crack is a meandering walk that pinches shut at both ends; many fork and cross each other. Cracks are added until
+   the target share of the surface is chasm. Walls are steep (see chasmMove: you have to climb them), the floor is dark. ---------- */
+const CH_COVER=.30;
 function buildChasm(d){
  const R=d.R,rg=mulberry32(9917),rr=(a,b)=>a+rg()*(b-a),g=new Float32Array(WGW*WGH);
- const ss=t=>{t=t<0?0:t>1?1:t;return t*t*(3-2*t)},STEP=22,cracks=[],starts=[];
+ const ss=t=>{t=t<0?0:t>1?1:t;return t*t*(3-2*t)},STEP=22,cracks=[];
+ const rowW=new Float32Array(WGH);let tot=0;for(let j=0;j<WGH;j++){rowW[j]=Math.max(0,Math.cos(-Math.PI/2+j/(WGH-1)*Math.PI))*WGW;tot+=rowW[j]}
+ let cov=0; // area covered so far (weighted by latitude), in the same units as tot
  const walk=(p0,h0,steps,hw,dp)=>{const pts=[],p=p0.clone(),h=h0.clone();let turn=0;
   for(let s=0;s<=steps;s++){const e=Math.pow(Math.sin(Math.PI*(s+.5)/(steps+1)),.6); // 0 at the tips, 1 in the middle
    pts.push({p:p.clone(),w:hw*(.55+.45*e),d:dp*e});
    turn+=(rg()-.5)*.5;turn*=.86;turn=Math.max(-.45,Math.min(.45,turn));
    h.applyAxisAngle(p,turn);const ax=new T.Vector3().crossVectors(p,h).normalize();p.applyAxisAngle(ax,STEP/R);h.applyAxisAngle(ax,STEP/R);h.addScaledVector(p,-h.dot(p)).normalize()}
-  cracks.push(pts);return pts};
- let made=0,guard=0;
- while(made<5&&guard++<500){const q=rndUnit(rg);if(starts.some(o=>o.dot(q)>Math.cos(900/R)))continue; // cracks stay well apart: chasms are only in a few parts of the planet
-  starts.push(q);const t0=rndUnit(rg);t0.addScaledVector(q,-t0.dot(q)).normalize();
-  const hw=rr(70,100),dp=rr(55,75),main=walk(q,t0,Math.floor(rr(18,30)),hw,dp);
-  if(rg()<.55){const i=Math.floor(rr(6,main.length-6)),a=main[i].p,tg=main[i+1].p.clone().sub(main[i-1].p);tg.addScaledVector(a,-tg.dot(a)).normalize();
-   walk(a,tg.applyAxisAngle(a,(rg()<.5?-1:1)*rr(.7,1.1)),Math.floor(rr(8,14)),hw*.7,dp*.8)}
-  made++}
- for(const pts of cracks)for(let s=0;s<pts.length-1;s++){
+  cracks.push(pts);stamp(pts);return pts};
+ const stamp=pts=>{for(let s=0;s<pts.length-1;s++){
   const A=pts[s],B=pts[s+1],ab=B.p.clone().sub(A.p),ab2=ab.lengthSq();if(ab2<1e-12)continue;
   const mid=A.p.clone().add(B.p).normalize(),reach=Math.max(A.w,B.w)*1.1+8,rho=(STEP/2+reach)/R;
   const mlat=Math.asin(mid.y),mlon=Math.atan2(mid.z,mid.x);
   const j0=Math.max(0,Math.floor((mlat-rho+Math.PI/2)/Math.PI*(WGH-1))),j1=Math.min(WGH-1,Math.ceil((mlat+rho+Math.PI/2)/Math.PI*(WGH-1)));
   const cmin=Math.cos(Math.min(Math.PI/2,Math.abs(mlat)+rho));let di=cmin<.03?WGW/2:Math.ceil(rho/cmin/(2*Math.PI)*WGW)+1;di=Math.min(di,WGW/2);
   const ic=Math.round((mlon+Math.PI)/(2*Math.PI)*WGW);
-  for(let j=j0;j<=j1;j++){const lat=-Math.PI/2+j/(WGH-1)*Math.PI,cy=Math.sin(lat),cl=Math.cos(lat);
+  for(let j=j0;j<=j1;j++){const lat=-Math.PI/2+j/(WGH-1)*Math.PI,cy=Math.sin(lat),cl=Math.cos(lat),wr=rowW[j]/WGW;
    for(let di2=-di;di2<=di;di2++){const ia=((ic+di2)%WGW+WGW)%WGW,lon=-Math.PI+ia/WGW*2*Math.PI,x=cl*Math.cos(lon),z=cl*Math.sin(lon);
     const t=Math.max(0,Math.min(1,((x-A.p.x)*ab.x+(cy-A.p.y)*ab.y+(z-A.p.z)*ab.z)/ab2)),cx=A.p.x+ab.x*t-x,cyy=A.p.y+ab.y*t-cy,cz=A.p.z+ab.z*t-z;
-    const dist=Math.sqrt(cx*cx+cyy*cyy+cz*cz)*R*(.98+.04*vnoise(x*36+3,cy*36,z*36)); // slightly ragged rims
-    const w=A.w+(B.w-A.w)*t,dd=A.d+(B.d-A.d)*t,k=(w-dist)/w; // smooth V / U profile: steep in the middle of each wall, rounded at the rim and at the floor
-    if(k<=0)continue;const dep=dd*ss(k),idx=j*WGW+ia;if(dep>g[idx])g[idx]=dep}}}
- for(let it=0;it<2;it++){ // soften creases where two segments meet (so the visible terrain mesh and the walking height agree)
+    const w=A.w+(B.w-A.w)*t,dr=Math.sqrt(cx*cx+cyy*cyy+cz*cz)*R;if(dr>=w)continue;
+    const dist=dr*(1+.02*(Math.sin(x*37+z*23+cy*29)+Math.sin(z*41-x*17+cy*31+1.7))),dd=A.d+(B.d-A.d)*t,k=(w-dist)/w; // smooth V / U profile: steep in the middle of each wall, rounded at the rim and at the floor
+    if(k<=0)continue;const dep=dd*ss(k),idx=j*WGW+ia,old=g[idx];if(dep>old){if(old<=.02&&dep>.02)cov+=wr;g[idx]=dep}}}}};
+ let guard=0;
+ while(cov<tot*(CH_COVER-.012)&&guard++<4000){ // -.012: the softening pass below spreads the edges and the last crack overshoots, which brings the final share up to about 30%
+  const q=rndUnit(rg);if(wSample({g},q.x,q.y,q.z)>.02)continue; // start in open ground so every crack adds something
+  const t0=rndUnit(rg);t0.addScaledVector(q,-t0.dot(q)).normalize();
+  const hw=rr(60,100),dp=rr(52,72),main=walk(q,t0,Math.floor(rr(14,34)),hw,dp);
+  const nb=rg()<.7?1+(rg()<.4?1:0):0;
+  for(let b=0;b<nb;b++){const i=Math.floor(rr(5,main.length-5)),a=main[i].p,tg=main[i+1].p.clone().sub(main[i-1].p);tg.addScaledVector(a,-tg.dot(a)).normalize();
+   walk(a,tg.applyAxisAngle(a,(rg()<.5?-1:1)*rr(.7,1.1)),Math.floor(rr(8,16)),hw*.75,dp*.85)}}
+ for(let it=0;it<2;it++){ // soften creases where two cracks meet (so the visible terrain mesh and the walking height agree)
   const t=new Float32Array(g.length);
   for(let j=0;j<WGH;j++){const o=j*WGW;for(let i=0;i<WGW;i++)t[o+i]=(g[o+(i+WGW-1)%WGW]+2*g[o+i]+g[o+(i+1)%WGW])*.25}
   for(let j=0;j<WGH;j++){const o=j*WGW,u=Math.max(0,j-1)*WGW,v=Math.min(WGH-1,j+1)*WGW;for(let i=0;i<WGW;i++)g[o+i]=(t[u+i]+2*t[o+i]+t[v+i])*.25}}

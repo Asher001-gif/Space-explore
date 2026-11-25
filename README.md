@@ -45,7 +45,7 @@ Verdant has one deep ocean (about 95 units deep) and a network of small rivers t
 - Your position is saved while swimming too, so you resume in the water where you quit.
 
 ## Chasms (Ember only)
-Ember has a few long, deep cracks (about 55-75 units deep, roughly 4% of the surface) instead of water. Like the water they are a fixed seeded depth field (`buildChasm`, same layout every session) that the terrain mesh, walking height, trees and creatures all read, so the cracks are always in the same places. Ember's terrain uses the same ~9 unit facets as Verdant so the steep walls match the walking height.
+Ember has a network of long, deep cracks (about 55-75 units deep) covering about 30% of the surface instead of water. They fork and cross, and where two overlap you can find flat ledges on the way down. Like the water they are a fixed seeded depth field (`buildChasm`, same layout every session) that the terrain mesh, walking height, trees and creatures all read, so the cracks are always in the same places. Ember's terrain uses the same ~9 unit facets as Verdant so the steep walls match the walking height.
 
 - **Falling in:** walk or fall over a rim (or land in one) and you end up on the dark floor.
 - **Climbing out:** the walls are too steep to walk. **Hold W / Up Arrow while facing the rock wall** and you climb slowly (about 3 units per second). **Let go, or turn away, and you slide back down.**
