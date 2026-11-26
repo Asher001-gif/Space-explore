@@ -97,7 +97,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near a <b>peaceful</b> animal or a fish and press <b>5</b> or <b>Shift</b> (or the button) to tame it — it follows you. Predators and serpents just break the rope. You can keep <b>3 pets</b> at a time, and tamed creatures are saved with your world: they never despawn and wait where you left them (they wander off for good if you stay away for 3 days). Go too far, or keep pulling while it is stuck, and the rope snaps. A pet fish dies if you carry it on land for too long. Shift again lets a pet go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near a <b>peaceful</b> animal or a fish and press <b>5</b> or <b>Shift</b> (or the button) to tame it — it follows you. Predators and serpents just break the rope. You can keep <b>3 pets</b> at a time, and tamed creatures are saved with your world: they never despawn and wait where you left them (they wander off for good if you stay away for 3 days). Go too far, or keep pulling while it is stuck, and the rope snaps. A pet fish dies if you carry it on land for too long. Shift again lets a pet go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><p>💧 <b>Pit water:</b> craft a <b>Bucket</b> (tools tab), aim at a river, the sea or a wet pit and tap <b>5</b> to fill it, then tap <b>5</b> on a pit to pour. A pit only looks full if there was enough water — poured water dries up after 1-2 game days. A pit joined to a river or the sea by a <b>water path</b> is fed for good and never dries. Craft a <b>Channel Spade</b>, hold <b>5</b> and sweep your aim along the ground to draw the path; the water runs along it. Pits with water in them (or built in) never fill themselves in, and everything is saved in your browser.</p><button>Click to play</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
@@ -326,7 +326,7 @@ const LAYERS=[{n:'Dirt',t:.55,pick:1.7,axe:1,hand:.9},{n:'Loose rocks',t:2.4,pic
 const layerOf=k=>k<DIRT_L?0:k<DIRT_L+ROCK_L?1:2;
 let digVer=0;
 const dgQ=new T.Quaternion(),dgV=new T.Vector3(),dgA=new T.Vector3(),dgB=new T.Vector3(),dgC=new T.Vector3(),dgTp=new T.Vector3(),dgTn=new T.Vector3(),dgFn=new T.Vector3();
-function digInit(d){const N=Math.round(Math.PI/2*d.R/DIG_H);d.dN=N;d.dig=new Map();d.dData=new Uint8Array(6*N*N);d.dChunks=new Map();d.dMeshes=new Map();d.dDirty=new Set();d.dTexT=0;d.dTexW=0;
+function digInit(d){const N=Math.round(Math.PI/2*d.R/DIG_H);d.dN=N;d.dig=new Map();d.dData=new Uint8Array(6*N*N);d.dChunks=new Map();d.dMeshes=new Map();d.dDirty=new Set();d.dTexT=0;d.dTexW=0;d.wset=new Set();d.conn=new Set();d.cv=-1;d.wMeshes=new Map();d.wclk=0;
  const t=new T.DataTexture(d.dData,3*N,2*N,T.LuminanceFormat,T.UnsignedByteType);t.magFilter=t.minFilter=T.NearestFilter;t.generateMipmaps=false;t.unpackAlignment=1;t.needsUpdate=true;d.dTex=t;
  d.dcol=d.name==='Ember'?[0x8a4a2a,0x7a5a4a,0x4a3a3a,0x1d1e23]:[0x6b4a2b,0x8c8678,0x555a63,0x1d1e23];
  d.dMat=new T.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1,metalness:0,side:T.DoubleSide})}
@@ -348,7 +348,7 @@ const groundR=(d,n)=>surfR(d,n)-digL(d,n)*DIG_H; // radius of the ground as it i
 const digFloor=(d,pos)=>d.dig&&d.dig.size?-DIG_H*digL(d,dgFn.copy(pos).sub(d.c).normalize()):0; // floor height under you relative to the original ground (0 = untouched, negative = in a hole)
 const surfRL=(d,x,y,z)=>d.water?d.R-.05-wSample(d.water,x,y,z):d.chasm?d.R-.05-wSample(d.chasm,x,y,z):d.R-.05;
 function setDig(d,key,L,t){const N=d.dN,NN=N*N,f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N;
- if(L>0)d.dig.set(key,{L,t});else d.dig.delete(key);
+ if(L>0){const o=d.dig.get(key),e={L,t,w:o?Math.min(o.w,L):0,we:o?o.we:0,fr:0,tr:0,src:false,cf:o?o.cf:undefined};wInfo(d,key,e);d.dig.set(key,e);if(e.w>.001)d.wset.add(key);else d.wset.delete(key)}else{d.dig.delete(key);d.wset.delete(key)}
  d.dData[(Math.floor(f/3)*N+j)*3*N+(f%3)*N+i]=L;d.dTexT=1;
  const ck=dgCk(N,key);let s=d.dChunks.get(ck);if(L>0){if(!s)d.dChunks.set(ck,s=new Set());s.add(key)}else if(s)s.delete(key);
  d.dDirty.add(ck);for(let q=0;q<4;q++)d.dDirty.add(dgCk(N,dgNb(N,key,q)));
@@ -389,7 +389,8 @@ function terrainRay(maxD){
   return{d,n,key:dgKeyOf(d,n),L:digL(d,n),dist:hi,p:cam.position.clone().addScaledVector(fwd,hi)}}
  return null}
 function dgLabel(tg){if(wetB(tg.d,tg.n))return '';const L=LAYERS[layerOf(tg.L)];
- return L.n+(L.dmg&&!inv.pickaxe&&!inv.axe&&!inv.spear?' ⚠ hurts bare-handed':'')}
+ const e=tg.d.dig.get(tg.key),wl=e&&e.w>.02?' · 💧 '+Math.round(e.w/e.L*100)+'% full'+(tg.d.conn.has(tg.key)?' · fed by river / sea':''):'';
+ return L.n+(L.dmg&&!inv.pickaxe&&!inv.axe&&!inv.spear?' ⚠ hurts bare-handed':'')+wl}
 /* dust and rock bits */
 const bitG=new T.BoxGeometry(.28,.28,.28),bitM={},bits=[];
 function puff(d,p,n,lay,cnt){const mk=d.name+lay,m=bitM[mk]||(bitM[mk]=new T.MeshStandardMaterial({color:d.dcol[lay],roughness:1}));
@@ -419,7 +420,7 @@ function digWallSlide(d,w,dt){if(!digBlocked(d,w,dt))return;
 /* upkeep: build pit meshes, upload the hole mask, and fill holes nobody is looking at after a few game days */
 const dgFr=new T.Frustum(),dgFm=new T.Matrix4(),dgRel=new T.Vector3(),dgWp=new T.Vector3();let dgT=0;
 function digTick(dt){
- for(const d of planets){let n=0;for(const ck of d.dDirty){dgBuild(d,ck);d.dDirty.delete(ck);if(++n>=3)break}
+ for(const d of planets){let n=0;for(const ck of d.dDirty){dgBuild(d,ck);wBuild(d,ck);d.dDirty.delete(ck);if(++n>=3)break}
   if(d.dTexT){d.dTexW-=dt;if(d.dTexW<=0){d.dTex.needsUpdate=true;d.dTexT=0;d.dTexW=.15}}}
  dgT-=dt;if(dgT>0)return;dgT=5;
  dgFm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);dgFr.setFromProjectionMatrix(dgFm);
@@ -428,6 +429,7 @@ function digTick(dt){
   if(!old.length)continue;
   let held=null;const crel=dgRel.copy(cam.position).sub(d.c);
   for(const key of old.slice(0,200)){
+   {const ee=d.dig.get(key);if(ee&&(ee.w>.001||d.conn.has(key)))continue} // a pit with water in it (or fed by a river / the sea) stays open
    const f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N;
    dgCorner(N,f,i+.5,j+.5,dgA);dgA.applyQuaternion(d.rq); // world direction of the column
    dgWp.copy(dgA).multiplyScalar(d.R).add(d.c);
@@ -436,6 +438,106 @@ function digTick(dt){
    if(!held){held=new Set();for(const o of blocks.values()){dgFn.copy(o.pos).sub(d.c);const l=dgFn.length();if(l>d.R+30||l<d.R-DIG_MAX*DIG_H-4)continue;const k0=dgKeyOf(d,dgFn.multiplyScalar(1/l));held.add(k0);for(let q=0;q<4;q++)held.add(dgNb(N,k0,q))}}
    if(held.has(key))continue; // something is built in it
    setDig(d,key,0,0)}}}
+/* ---------- pit water ----------
+   Every dug column can hold water (e.w = layers of water, 0..L). Three things happen to it:
+   - FED: a pit / water path that touches a river or the sea (through any chain of open columns) is fed for good. Water spreads along the path
+     like a front (WSPD columns per second) and rises to the level of the river / sea, and it never dries out.
+   - POURED (bucket): the water spreads to open neighbouring columns until the levels match. A pit only shows a full cover if there was enough water;
+     all water that is not fed dries up after 1-2 game days (e.we = the time it is gone).
+   - holes that hold water, or are fed, never fill themselves in. They and their water are saved with the world (save field "dw"). */
+let wVer=0;const WSPD=6,dgCV=new T.Vector3(),_wo=new T.Vector3(),_pu=new T.Vector3(),spV=new T.Vector3();
+function wInfo(d,key,e){const N=d.dN,NN=N*N,f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N; // ground height of the column, and does it touch natural water?
+ dgCorner(N,f,i+.5,j+.5,dgCV);e.tr=surfRL(d,dgCV.x,dgCV.y,dgCV.z);e.fr=e.tr-e.L*DIG_H;e.src=false;
+ if(d.water)for(let s=0;s<4;s++){const nb=dgNb(N,key,s),g=Math.floor(nb/NN),rr=nb-g*NN,jj=Math.floor(rr/N),ii=rr-jj*N;dgCorner(N,g,ii+.5,jj+.5,dgCV);if(wSample(d.water,dgCV.x,dgCV.y,dgCV.z)>.02){e.src=true;break}}}
+const pitSurfR=e=>e.w>=e.L-.001?e.tr-.08:e.fr+e.w*DIG_H; // radius of the water surface in a column
+function setW(d,key,e,w){w=Math.max(0,Math.min(e.L,w));if(Math.abs(w-e.w)<1e-4)return;e.w=w;if(w>.001)d.wset.add(key);else{d.wset.delete(key);e.w=0}d.dDirty.add(dgCk(d.dN,key));wVer++}
+const dayOfPl=d=>d.name==='Verdant'?DAY_V:DAY_E;
+function wConn(d){ // which open columns are joined (through open ground) to a river / the sea
+ const N=d.dN,real=new Set(),q=[];
+ for(const[key,e]of d.dig)if(e.src){real.add(key);q.push(key)}
+ for(let h=0;h<q.length;h++){const key=q[h];for(let s=0;s<4;s++){const nb=dgNb(N,key,s);if(!real.has(nb)&&d.dig.has(nb)){real.add(nb);q.push(nb)}}}
+ const seen=new Map(),q2=[]; // hops from the river, or from the end of the part that is already filled (so a path made longer fills from its old end)
+ for(const key of real){const e=d.dig.get(key);if(e.src||(e.cf!==undefined&&e.cf<=d.wclk&&d.conn.has(key))){seen.set(key,0);q2.push(key)}}
+ for(let h=0;h<q2.length;h++){const key=q2[h],hp=seen.get(key);for(let s=0;s<4;s++){const nb=dgNb(N,key,s);if(!seen.has(nb)&&real.has(nb)){seen.set(nb,hp+1);q2.push(nb)}}}
+ for(const[key,e]of d.dig){if(seen.has(key)){if(e.cf===undefined||!d.conn.has(key))e.cf=d.wclk+seen.get(key)/WSPD}
+  else if(e.cf!==undefined){e.cf=undefined;if(e.w>.001&&!(e.we>worldTime))e.we=worldTime+rnd(1,2)*dayOfPl(d)}} // cut off from the river: it dries out like any other water
+ d.conn=new Set(seen.keys());d.cv=digVer}
+let wtT=0;
+function waterTick(dt){
+ wtT-=dt;if(wtT>0)return;const h=.3-wtT;wtT=.3;
+ for(const d of planets){if(!d.dig.size&&!d.conn.size)continue;
+  if(d.cv!==digVer)wConn(d);
+  if(!d.conn.size&&!d.wset.size)continue;
+  d.wclk+=h;
+  for(const key of d.conn){const e=d.dig.get(key);if(!e||e.cf>d.wclk)continue; // fed columns: the front has reached them, the water rises to the river's level
+   const want=Math.max(0,Math.min(e.L,(d.wr-e.fr)/DIG_H));
+   if(e.w<want-.002)setW(d,key,e,Math.min(want,e.w+1.4*h));else if(e.w>want+.002)setW(d,key,e,Math.max(want,e.w-1.4*h))}
+  for(const key of [...d.wset]){const e=d.dig.get(key);if(!e){d.wset.delete(key);continue}
+   if(d.conn.has(key))continue;
+   if(worldTime>=e.we){setW(d,key,e,0);continue} // dried out
+   for(let s=0;s<4;s++){const nb=dgNb(d.dN,key,s),n=d.dig.get(nb);if(!n||d.conn.has(nb))continue; // poured water runs to lower neighbouring columns
+    const sa=e.fr+e.w*DIG_H,sb=n.fr+n.w*DIG_H;if(sa<=sb+.05||e.w<=.001)continue;
+    const m=Math.min(e.w,(sa-sb)/DIG_H*.3,n.L-n.w);if(m<=.001)continue;
+    setW(d,key,e,e.w-m);setW(d,nb,n,n.w+m);if(!(n.we>=e.we))n.we=e.we}}}}
+function wBuild(d,ck){ // the water surface of each chunk of pits: one flat quad per wet column
+ const old=d.wMeshes.get(ck);if(old){d.mesh.remove(old);old.geometry.dispose();d.wMeshes.delete(ck)}
+ const set=d.dChunks.get(ck);if(!set||!set.size||!d.wset.size)return;
+ const N=d.dN,NN=N*N,pos=[],nor=[];
+ for(const key of set){const e=d.dig.get(key);if(!e||e.w<=.02)continue;
+  const f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N,R=pitSurfR(e),D=[];
+  for(const[a,b]of[[i,j],[i+1,j],[i+1,j+1],[i,j+1]])D.push(dgCorner(N,f,a,b,new T.Vector3()));
+  for(const c of[0,1,2,0,2,3]){const v=D[c];pos.push(v.x*R,v.y*R,v.z*R);nor.push(v.x,v.y,v.z)}}
+ if(!pos.length)return;
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));g.computeBoundingSphere();
+ const m=new T.Mesh(g,wpMat());m.raycast=()=>{};m.renderOrder=2;d.mesh.add(m);d.wMeshes.set(ck,m)}
+let _wpm=null;const wpMat=()=>_wpm||(_wpm=new T.MeshPhongMaterial({color:0x2b8fc9,emissive:0x04121f,specular:0x6f93b3,shininess:60,transparent:true,opacity:.74,side:T.DoubleSide,depthWrite:false}));
+/* the sea sphere must not shine through open pits: it is cut out wherever a column is dug (same mask as the ground) */
+const HOLE_GLSL=`{vec3 q=normalize(vGP),a=abs(q);float f,u,v;
+ if(a.x>=a.y&&a.x>=a.z){f=q.x>0.?0.:1.;u=q.y/a.x;v=q.z/a.x;}else if(a.y>=a.z){f=q.y>0.?2.:3.;u=q.x/a.y;v=q.z/a.y;}else{f=q.z>0.?4.:5.;u=q.x/a.z;v=q.y/a.z;}
+ float ci=clamp(floor((atan(u)*.6366197723675814+.5)*uDN),0.,uDN-1.),cj=clamp(floor((atan(v)*.6366197723675814+.5)*uDN),0.,uDN-1.);
+ if(texture2D(uDM,vec2((mod(f,3.)*uDN+ci+.5)/(3.*uDN),(floor(f/3.)*uDN+cj+.5)/(2.*uDN))).r>.001)discard;}`;
+/* standing in pit water: slower, and with your head under it the breath bar drains */
+function pitCol(d){if(!d||!d.wset||!d.wset.size||P.mode!=='ground'||P.pl!==d)return null;const e=d.dig.get(dgKeyOf(d,_pu.copy(cam.position).sub(d.c)));return e&&e.w>.05?e:null}
+function pitSub(d){const e=pitCol(d);return e?Math.max(0,pitSurfR(e)-cam.position.distanceTo(d.c)):0}
+function pitFeet(d){const e=pitCol(d);return e?Math.max(0,pitSurfR(e)-(cam.position.distanceTo(d.c)-EYE)):0}
+/* aiming at the sea / a river surface (the ground ray ignores water) */
+function waterRay(maxD){
+ for(const d of planets){if(!d.water)continue;
+  const oc=_wo.copy(cam.position).sub(d.c),b=oc.dot(fwd),c=oc.lengthSq()-d.wr*d.wr;if(c<=0)continue;
+  const disc=b*b-c;if(disc<0)continue;const t=-b-Math.sqrt(disc);if(t<.2||t>maxD)continue;
+  const p=cam.position.clone().addScaledVector(fwd,t),n=p.clone().sub(d.c).normalize();
+  if(wDepth(d,n)>.4&&digL(d,n)===0)return{d,n,p}}
+ return null}
+/* bucket: empty -> fill at a river / the sea / a wet pit; full -> pour into a pit. One bucket = 1 layer of water in one column. */
+function useBucket(k){
+ if(P.mode!=='ground'||!P.pl||P.sw||P.pl.ag){say('🪣 Stand on a planet to use the bucket');return}
+ const tg=terrainRay(DIG_REACH);
+ if(k==='bucket'){
+  if(waterRay(DIG_REACH)){inv.bucket--;inv.wbucket++;say('🪣 Bucket filled with water');save();return}
+  if(tg){const e=tg.d.dig.get(tg.key);
+   if(e&&e.w>=.5){setW(tg.d,tg.key,e,e.w-Math.min(1,e.w));inv.bucket--;inv.wbucket++;say('🪣 Scooped water out of the pit');save();return}
+   if(e&&e.w>.02){say('Not enough water here to scoop');return}}
+  say('Aim at a river, the sea or a water-filled pit to fill the bucket');return}
+ if(waterRay(DIG_REACH)){say('The bucket is already full — aim at a pit to pour it');return}
+ if(!tg||tg.L<1){say('Aim at a pit to pour the water in (dig one first)');return}
+ const d=tg.d,e=d.dig.get(tg.key),room=e.L-e.w;
+ if(room<.02){say('This pit is already full of water');return}
+ const fed=d.conn.has(tg.key);
+ if(!fed)e.we=Math.max(e.we||0,worldTime+rnd(1,2)*dayOfPl(d));
+ setW(d,tg.key,e,e.w+Math.min(1,room));inv.wbucket--;inv.bucket++;
+ say(fed?'💧 Poured — this pit is fed by the river':e.w>=e.L-.01?'💧 The pit is full — it dries out in 1-2 days unless a path joins it to a river or the sea':'💧 Not enough water to fill the pit — it soaks away within 1-2 days');save()}
+/* channel spade: hold 5 and sweep your aim along the ground — every column it crosses is dug open 1 layer deep (a water path) */
+function dgNoReason(d,n){return d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null}
+function spadeHold(tg){
+ hold.broke=true;$('pb').style.display='none';const d=tg.d;
+ if(wetB(d,tg.n)){if(hold.warned!=='w'){hold.warned='w';say('Water paths are dug on dry land')}hold.sp=null;return}
+ const pts=[tg.p],sp=hold.sp;
+ if(sp&&sp.d===d){const a=sp.p,dist=a.distanceTo(tg.p);if(dist>1.2&&dist<30){const n=Math.min(10,Math.ceil(dist/1.1));for(let i=1;i<n;i++)pts.push(new T.Vector3().lerpVectors(a,tg.p,i/n))}} // fill the gaps when the aim moves fast
+ hold.sp={d,p:tg.p.clone()};let made=0,blocked=null;
+ for(const p of pts){spV.copy(p).sub(d.c).normalize();if(wetB(d,spV))continue;const key=dgKeyOf(d,spV);if(d.dig.has(key))continue;
+  const no=dgNoReason(d,spV);if(no){blocked=no;continue}
+  puff(d,p,spV.clone(),0,5);setDig(d,key,1,worldTime);made++}
+ if(made)save();else if(blocked&&hold.warned!==blocked){hold.warned=blocked;say(blocked)}}
 function groundMat(d){
  digInit(d);
  const ember=d.name==='Ember',U={uDM:{value:d.dTex},uDN:{value:d.dN},uG:{value:GTEX},uGC:{value:ember?.75:.6},uTint:{value:ember?new T.Color(.72,.62,.55):new T.Color(1.14,1.02,.74)}};
@@ -480,7 +582,10 @@ PDEF.forEach(d=>{
  const m=new T.Mesh(g,groundMat(d));m.position.copy(d.c);scene.add(m);m.updateMatrixWorld(true);d.mesh=m;
  if(d.water){ // the sea surface: a smooth sphere that catches the sun's glint
   const wm=new T.Mesh(new T.IcosahedronGeometry(d.wr,60),new T.MeshPhongMaterial({color:0x1d77b0,emissive:0x03101c,specular:0x6f93b3,shininess:55,transparent:true,opacity:.8,side:T.DoubleSide}));
-  wm.position.copy(d.c);wm.raycast=()=>{};scene.add(wm);d.waterMesh=wm}
+  wm.material.onBeforeCompile=sh=>{sh.uniforms.uDM={value:d.dTex};sh.uniforms.uDN={value:d.dN};
+   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvGP=position;');
+   sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D uDM;uniform float uDN;varying vec3 vGP;').replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\n'+HOLE_GLSL)};
+  wm.position.copy(d.c);wm.quaternion.copy(d.mesh.quaternion);wm.raycast=()=>{};scene.add(wm);d.waterMesh=wm}
  { // thick atmosphere seen from space: a soft halo that fades from the planet's edge out to the top of the atmosphere (hidden once you are inside it)
   const sd=SUN.clone().sub(d.c).normalize();
   const am=new T.Mesh(new T.SphereGeometry(d.RA,64,40),new T.ShaderMaterial({transparent:true,side:T.BackSide,blending:T.AdditiveBlending,depthWrite:false,
@@ -900,11 +1005,13 @@ function mkItem(kind){
  else if(kind==='cooked'){disc(9,6,4,'#a84b22');disc(8,5,3,'#c8612f');P(7,4,'#e8955a',3,1);line(5,10,3,12,'#f2ead2');P(2,11,'#f2ead2',2,1);P(2,13,'#f2ead2',2,1);P(3,12,'#f2ead2');P(12,3,'#6d2a10')}
  else if(kind==='stew'){P(3,8,'#d98a3a',10,1);P(5,7,'#e8a95a',2,1);P(9,7,'#c0602a',2,1);P(2,9,Sd,12,1);P(3,10,S,10,1);P(4,11,S,8,1);P(5,12,Sd,6,1);P(3,9,S);P(7,5,'#ffffffaa',1,2);P(9,3,'#ffffff88',1,2);P(11,5,'#ffffffaa',1,2)}
  else if(kind==='bandage'){disc(8,8,5,'#f2ead2');disc(8,8,2,'#d9cfae');g.clearRect(7*4,7*4,8,8);P(6,6,'#fff',1,1);P(11,8,'#c0392b',1,3);P(10,9,'#c0392b',3,1)}
+ else if(kind==='bucket'||kind==='wbucket'){const B='#8a94a8',Bd='#5d6680';P(4,3,Sd);P(5,2,Sd);P(6,1,Sd,4,1);P(10,2,Sd);P(11,3,Sd);P(3,5,S,10,1);for(let y=6;y<=13;y++){const x0=y<=9?3:y<=11?4:5,x1=y<=9?12:y<=11?11:10;P(x0,y,B,x1-x0+1,1);P(x0,y,y%2?B:Bd,1,1);P(x1,y,Bd,1,1)}P(4,8,Bd,8,1);P(4,11,Bd,7,1);if(kind==='wbucket'){P(4,6,'#4db3ee',8,1);P(4,7,'#2b8fc9',8,1);P(6,6,'#c7ecff',2,1)}}
+ else if(kind==='spade'){line(3,14,10,7,Wd);line(4,14,11,7,W);P(11,2,Sd,2,1);P(10,3,S,4,4);P(10,3,Sd,1,4);P(11,7,S,2,1);P(14,3,'#4db3ee');P(14,4,'#2b8fc9')}
  else if(kind==='medkit'){P(2,5,'#f4f4f4',12,9);P(2,5,'#b9bfcc',12,1);P(2,13,'#b9bfcc',12,1);P(2,5,'#b9bfcc',1,9);P(13,5,'#b9bfcc',1,9);P(5,3,'#8e98ad',6,2);P(7,6,'#d63a3a',2,6);P(5,8,'#d63a3a',6,2)}
  return cv.toDataURL();
 }
 const ICON={};['wood','stone','hull'].forEach(k=>ICON[k]=mkIcon(k));ICON.anti=mkIcon('anti');
-['cooked','stew','bandage','medkit'].forEach(k=>ICON[k]=mkItem(k));ICON.pickaxe='pickaxe';ICON.axe='axe';ICON.spear='spear';
+['cooked','stew','bandage','medkit','bucket','wbucket','spade'].forEach(k=>ICON[k]=mkItem(k));ICON.pickaxe='pickaxe';ICON.axe='axe';ICON.spear='spear';
 const blocks=new Map();
 let blocksVer=0; // bumps whenever a block is added / removed / turned into a Gravity Generator block / a door opens or closes
 for(const m of['set','delete','clear']){const f=blocks[m];blocks[m]=function(...a){blocksVer++;return f.apply(this,a)}}
@@ -991,7 +1098,7 @@ function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest 
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=stk;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0,bucket:0,wbucket:0,spade:0};
 const pets=[]; // animals tied with a rope (see petTick)
 const ITEMS={
  door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},tube:{n:'Sleeping Tube',img:'tube',d:'Place it (2 blocks high), then tap it to sleep. Sleep at night and you wake at day'},leather:{n:'Leather',img:'leather',d:'Dropped by night predators and chasm snakes'},rope:{n:'Rope',img:'rope',d:'Twisted from 2 leather. Hold it, stand near a peaceful animal or fish and press 5 or Shift to tame it'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
@@ -999,10 +1106,11 @@ const ITEMS={
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
  anti:{n:'Gravity Generator',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5'},
- pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 3x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 3x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
+ pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 3x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 3x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'},
+ bucket:{n:'Bucket',img:ICON.bucket,d:'Aim at a river, the sea or a wet pit and tap 5 to fill it'},wbucket:{n:'Water Bucket',img:ICON.wbucket,d:'Aim at a pit and tap 5 to pour the water in'},spade:{n:'Channel Spade',img:ICON.spade,d:'Hold 5 and sweep your aim along the ground to draw a water path'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','fish','plank','wood','stone','hull','door','tube','leather','rope','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
+const ORDER=['food','fish','plank','wood','stone','hull','door','tube','leather','rope','anti','apple','pickaxe','axe','spear','bucket','wbucket','spade','cooked','cfish','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -1072,7 +1180,7 @@ const _sv2=new T.Vector3(),_sq2=new T.Quaternion();
 function placeSun(){const v=_sv2.copy(SUN).sub(cam.position),D=v.length(),k=Math.min(D,SUN_DRAW)/D;SUNMESH.forEach(m=>{m.position.copy(cam.position).addScaledVector(v,k);m.scale.setScalar(1000*k)})}
 function spinPlanet(d,ang,full,force){
  const q=_sq.setFromAxisAngle(d.axis,ang),c=d.c;
- d.mesh.quaternion.premultiply(q);d.rq.premultiply(q).normalize();d.cloudU.uRot.value.setFromMatrix4(_sm4.makeRotationFromQuaternion(d.rq));
+ d.mesh.quaternion.premultiply(q);if(d.waterMesh)d.waterMesh.quaternion.copy(d.mesh.quaternion);d.rq.premultiply(q).normalize();d.cloudU.uRot.value.setFromMatrix4(_sm4.makeRotationFromQuaternion(d.rq));
  /* trees, sprouts and animals: those within 260 of you turn every frame; the rest catch up (by the angle they owe, o.sa = angle they are synced to) once the planet has turned ~1.5 units of arc */
  d.sp=(d.sp||0)+ang;const far=force||Math.abs(d.sp-(d.fsp||0))>=1.5/d.R;if(far)d.fsp=d.sp;
  const cp=cam.position,owe=o=>{if(o.sa===undefined)o.sa=d.sp-ang;if(!far&&!(o.base.distanceToSquared(cp)<TREE_NEAR2))return null;const a=d.sp-o.sa;if(!a)return null;o.sa=d.sp;return _sq2.setFromAxisAngle(d.axis,a)};
@@ -1158,15 +1266,16 @@ function posSnap(){ // exact spot, view and mode, so the game resumes right wher
  if(P.mode==='ground'&&P.pl)o.pl=P.pl.ag?'AG':planets.indexOf(P.pl);
  return o;
 }
-let _bc={v:-1,s:'[]',ids:[]},_dc={v:-1,s:'[]'},_lastSave='',_ticked=false; // _bc: the blocks part of the save, rebuilt only when blocks changed
+let _bc={v:-1,s:'[]',ids:[]},_dc={v:-1,s:'[]'},_wc={v:-1,s:'[]'},_lastSave='',_ticked=false; // _bc: the blocks part of the save, rebuilt only when blocks changed
 function save(){
  try{
   if(_bc.v!==blocksVer){const b=[],ids=new Set();blocks.forEach(o=>{if(o.top)return;ids.add(o.s.id);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
    _bc={v:blocksVer,s:JSON.stringify(b),ids:[...ids]}}
   if(_dc.v!==digVer)_dc={v:digVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.dig.forEach((e,k)=>a.push(k,e.L,Math.round(e.t)));return a}))}; // holes per planet: [grid size, column, layers, time dug, ...]
+  if(_wc.v!==wVer)_wc={v:wVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.wset.forEach(k=>{const e=d.dig.get(k);if(e)a.push(k,Math.round(e.w*100),Math.round(e.we||0))});return a}))}; // water in pits per planet: [grid size, column, water x100, time it dries, ...]
   const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
   const rest=JSON.stringify({inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
-  const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+',"dig":'+_dc.s+','+rest.slice(1);
+  const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+',"dig":'+_dc.s+',"dw":'+_wc.s+','+rest.slice(1);
   if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
 }
@@ -1178,6 +1287,8 @@ function loadSave(){
   if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin(d.ang)}
   if(Array.isArray(d.dig))d.dig.forEach((a,pi)=>{const pl=planets[pi];if(!pl||!Array.isArray(a)||a[0]!==pl.dN)return;
    for(let q=1;q+2<a.length;q+=3){const k=a[q],L=a[q+1],t=a[q+2];if(Number.isInteger(k)&&k>=0&&k<6*pl.dN*pl.dN&&Number.isInteger(L)&&L>0&&L<=DIG_MAX&&Number.isFinite(t))setDig(pl,k,L,Math.min(t,worldTime))}});
+  if(Array.isArray(d.dw))d.dw.forEach((a,pi)=>{const pl=planets[pi];if(!pl||!Array.isArray(a)||a[0]!==pl.dN)return;
+   for(let q=1;q+2<a.length;q+=3){const k=a[q],w=a[q+1],we=a[q+2],e=pl.dig.get(k);if(e&&Number.isFinite(w)&&w>0){e.w=Math.min(e.L,w/100);e.we=Number.isFinite(we)?we:0;pl.wset.add(k);pl.dDirty.add(dgCk(pl.dN,k))}}});
   if(d.lv>=3){
    (d.structs||[]).forEach(a=>{if(Array.isArray(a)&&a.length===8&&a.every(Number.isFinite)&&a[0]>0)regStruct(mkStruct(new T.Vector3(a[1],a[2],a[3]),new T.Quaternion(a[4],a[5],a[6],a[7]),a[0]))});
    (d.blocks||[]).forEach(([type,sid,i,j,k,ag,op,dax,dsw])=>{
@@ -1218,13 +1329,13 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0,bucket:0,wbucket:0,spade:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
 let selSlot=null,dnd=null,lastClk={t:0,i:-1},tab='Tools';
 const RECIPES={
- Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 3x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 3x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
+ Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 3x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 3x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1},{n:'Bucket',give:{bucket:1},cost:{plank:2,stone:2},d:'Scoop water from a river, the sea or a wet pit and pour it into a pit'},{n:'Channel Spade',give:{spade:1},cost:{plank:2,stone:1},d:'Hold 5 and sweep your aim along the ground to draw a water path',once:1}],
  Materials:[{n:'Rope',give:{rope:1},cost:{leather:2},d:'2 leather make 1 rope',img:'rope'},{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Door (1 plank)',give:{door:1},cost:{plank:1},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Door (3 wood blocks)',give:{door:1},cost:{wood:3},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
  Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Cooked Fish (plank)',give:{cfish:1},cost:{fish:1,plank:1},d:'+45 hunger'},{n:'Cooked Fish (wood block)',give:{cfish:1},cost:{fish:1,wood:1},d:'+45 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
  Comfort:[{n:'Sleeping Tube',give:{tube:1},cost:{leather:2,wood:1},d:'Tap it to sleep: night passes, you wake at day',img:'tube'},{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
@@ -1399,6 +1510,8 @@ function tap(){ // use whatever is in the selected hotbar slot; aimed at a door 
  if(aimObj&&aimObj.tube&&aimObj.pos.distanceTo(cam.position)<7){useTube();return}
  const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
+ if(k==='bucket'||k==='wbucket'){useBucket(k);return}
+ if(k==='spade'){say('Hold 5 / left-click and sweep along the ground to draw a water path');return}
  if(BT[k]){if(inv[k]>0)place(k);return} // (the door item is a BT entry too)
  const it=ITEMS[k];if(it.use)useItem(k);else say(it.d||it.n)}
 function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?1:.3):o.kind==='tree'?(inv.axe>0?1:.3):o.kind==='animal'?(inv.spear>0?2.5:1):1}
@@ -1522,12 +1635,12 @@ function setH(id,h){if(_hc[id]!==h){_hc[id]=h;$(id).innerHTML=h}}
 function setSt(id,p,v,kid){const k=id+'.'+p;if(_hc[k]!==v){_hc[k]=v;(kid?$(id).firstChild:$(id)).style[p]=v}}
 let deepW=false;
 function breathTick(dt){
- const under=P.mode==='ground'&&P.sw&&P.swY<0,dep=P.mode==='ground'&&!P.sw&&P.pl&&P.pl.dig&&P.pl.dig.size?-P.hh:0,deep=dep>DEEP0; // deep in a hole the air gets thin: the deeper, the faster the breath bar drains
+ const ps=P.mode==='ground'&&!P.sw&&P.pl?pitSub(P.pl):0,under=P.mode==='ground'&&((P.sw&&P.swY<0)||ps>.05),dep=P.mode==='ground'&&!P.sw&&P.pl&&P.pl.dig&&P.pl.dig.size?-P.hh:0,deep=dep>DEEP0; // deep in a hole the air gets thin: the deeper, the faster the breath bar drains
  if(under||deep){const k=under?1:.6+(dep-DEEP0)/10;P.air=Math.max(0,P.air-100/AIR_T*k*dt);if(P.air<=0)hurt(8*dt,under?'drown':'thin');if(deep&&!deepW){deepW=true;say('😮‍💨 The air is thin down here — climb out!')}}else{P.air=Math.min(100,P.air+60*dt);if(!deep)deepW=false}
  setSt('oxw','display',P.air<99.5?'block':'none');setSt('ox','width',(Math.round(P.air*2)/2)+'%',1)}
 let uwK=0;
 function uwUpdate(dt){ // underwater look: blue fog, darker with depth
- const d=P.pl,sub=P.mode==='ground'&&d&&d.water?d.wr-cam.position.distanceTo(d.c):0;
+ const d=P.pl,sub=Math.max(P.mode==='ground'&&d&&d.water?d.wr-cam.position.distanceTo(d.c):0,P.mode==='ground'&&d&&!P.sw?pitSub(d):0);
  uwK+=((sub>0?1:0)-uwK)*Math.min(1,dt*10);
  if(uwK>.01){const lum=(.18+.82*sm(.05,.6,dayA))*Math.exp(-Math.max(0,sub)/70);
   _cc.setHex(0x1a78a8).multiplyScalar(lum);
@@ -1558,6 +1671,7 @@ function groundStep(dt){
  if(d.water){const u0=_up.copy(cam.position).sub(d.c).normalize(),gr=surfR(d,u0),Dw=d.wr-gr;
   if(Dw>.05&&gr+EYE+P.hh-d.wr<0){enterWater(d,gr);swimStep(dt,d);return} // your head went under: you are swimming
   if(Dw>.15)slow=1-.4*cl01(Dw/1.6)} // wading is slower
+ if(d.wset.size){const wd=pitFeet(d);if(wd>.3)slow*=1-.4*cl01(wd/3)} // wading through pit water
  const up=P.up.copy(cam.position).sub(d.c).normalize();
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar((d.spd||11)*slow);
@@ -1721,11 +1835,13 @@ function loop(){
    if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
     if(held>250&&hk&&ITEMS[hk].use){hold.e=(hold.e||0)+dt/.7;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.e*100)+'%';if(hold.e>=1){hold.e=0;useItem(hk)}}else $('pb').style.display='none'}
    else if(o&&(o.kind==='animal'||o.kind==='fish'||o.kind==='snake')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
+   else if(held>250&&(hk==='bucket'||hk==='wbucket')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none'} // the bucket never digs
+   else if(held>250&&hk==='spade'&&tgOK&&!(o&&o.kind==='block'&&o.pos.distanceTo(cam.position)<tg.dist)){hold.o=null;spadeHold(tg)}
    else if(held>250&&tgOK&&!(o&&o.kind==='block'&&o.pos.distanceTo(cam.position)<tg.dist)){hold.o=null;digHold(tg,dt)}
    else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0;hold.dk=null}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   setSt('hp','width',(Math.round(Math.max(0,P.hp)*2)/2)+'%',1);setSt('hg','width',(Math.round(P.hg*2)/2)+'%',1);
-  petTick(dt);ownedTick(dt);petUI();treeTick(dt);digTick(dt);
+  petTick(dt);ownedTick(dt);petUI();treeTick(dt);digTick(dt);waterTick(dt);
  }
  syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
  stepGlitter(dt);stepBits(dt);SKY.position.copy(cam.position);

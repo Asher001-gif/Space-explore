@@ -71,6 +71,15 @@ Both planets can be mined, but in layers, so nobody can hollow one out for fun. 
 - **Thin air:** deeper than 6 units below the surface your **Breath** bar (the one from swimming) starts to drain, faster the deeper you are; it refills when you come up. At zero you take damage and can die. You can't launch into space from inside a hole.
 - **Refill:** a hole that nobody is looking at (out of view and over 60 units away, and with nothing built in it) fills itself again once 3 game days have passed since it was last dug (sleeping in a tube skips time, so it helps). Holes are saved with the world.
 - Tuning lives in the `DIG_*`, `DIRT_L`, `ROCK_L`, `DEEP0` constants and the `LAYERS` table in `src/index.html`.
+- **Pits that hold something stay open:** a hole with a block built in it, or with water in it, never fills itself in (the 3-day refill only applies to empty, dry holes). Take the block out / let the water go and the normal refill applies again. Holes, water and blocks are all saved in the browser's localStorage.
+
+### Water in pits and water paths
+- **Bucket** (2 planks + 2 stone, Tools tab): aim at a river, the sea or a pit with water and **tap 5** to fill it; tap 5 on a pit to pour. One bucket = 1 layer of water in one column. The Water Bucket is a separate hotbar item. Buckets work on both planets, so you can carry Verdant's water to Ember.
+- **A pit only looks full if there was enough water** (its depth in layers). Poured water spreads to open neighbouring columns until the levels match, is shown as a translucent water surface, and **dries up after 1-2 game days** (random per pour). After that you pour again.
+- **Channel Spade** (2 planks + 1 stone): **hold 5 / left-click and sweep the crosshair along the ground** to draw a water path - every column it crosses is dug open 1 layer deep (gaps are filled in when you sweep fast). Not on water, under roots or where a creature stands.
+- **Fed pits:** any pit or path that touches a river or the sea (through a chain of open columns) is fed for good. The water runs along the path like a front (about 6 columns a second) and rises to the level of the river / sea, also in deeper pits joined to it. Fed water **never dries out**. If a path is cut off from its river (a column fills in), the cut-off part dries out like poured water.
+- **In pit water:** you wade slower; with your head under the water the Breath bar drains like when swimming. The label under the crosshair shows how full a pit is and whether it is fed.
+- Tuning: `WSPD` (front speed), the `rnd(1,2)` day range in `useBucket`, and the 1.4 layers/s rise rate in `waterTick`.
 
 ## Death messages
 When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).
