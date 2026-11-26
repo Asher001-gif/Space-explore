@@ -85,6 +85,26 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 #bAct{right:max(18px,env(safe-area-inset-right));bottom:calc(var(--sl) + 30px + env(safe-area-inset-bottom));width:min(88px,22vh);height:min(88px,22vh)}
 #bJump{right:calc(max(18px,env(safe-area-inset-right)) + min(88px,22vh) + 10px);bottom:calc(var(--sl) + 24px + env(safe-area-inset-bottom));width:min(64px,16vh);height:min(64px,16vh)}
 #bInv{right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));width:46px;height:46px;font-size:22px}
+#load{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#101a3a 0%,#05060f 70%);transition:opacity .55s}
+#load.done{opacity:0;pointer-events:none}
+#load .lw{text-align:center;width:min(86vw,340px)}
+#load h1{margin:22px 0 18px;font-size:26px;letter-spacing:.06em;font-weight:700}
+.orb{position:relative;width:120px;height:120px;margin:0 auto}
+.orb .pl{position:absolute;left:36px;top:36px;width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#9be7ff 0,#3f9b4a 38%,#1d5f8c 72%,#0a2038 100%);box-shadow:0 0 28px rgba(110,190,255,.55),inset -8px -8px 14px rgba(0,0,20,.55)}
+.orb .orbit{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(160,180,255,.35);animation:lspin 2.6s linear infinite}
+.orb .orbit.b{inset:14px;animation-duration:1.7s;animation-direction:reverse;border-color:rgba(255,176,74,.35)}
+.orb .moon{position:absolute;left:50%;top:-5px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#e8ecff;box-shadow:0 0 10px #aebcff}
+.orb .b .moon{background:#ffb04a;box-shadow:0 0 10px #ff9a2a}
+@keyframes lspin{to{transform:rotate(360deg)}}
+.lbar{height:6px;border-radius:6px;background:rgba(160,180,255,.18);overflow:hidden}
+.lbar i{display:block;height:100%;width:40%;border-radius:6px;background:linear-gradient(90deg,transparent,#6dc2ff,#b9a6ff,transparent);animation:lslide 1.3s ease-in-out infinite}
+@keyframes lslide{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+.lmsg{position:relative;height:20px;margin-top:14px;font-size:13px;color:#aab6e8}
+.lmsg span{position:absolute;inset:0;opacity:0;animation:lmsg 6s infinite}
+.lmsg span:nth-child(2){animation-delay:1.5s}.lmsg span:nth-child(3){animation-delay:3s}.lmsg span:nth-child(4){animation-delay:4.5s}
+@keyframes lmsg{0%{opacity:0}6%,22%{opacity:1}28%,100%{opacity:0}}
+#help{position:fixed;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));z-index:6;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);font:700 20px/1 system-ui,sans-serif;cursor:pointer;backdrop-filter:blur(6px);padding:0}
+#help:hover{background:rgba(40,56,110,.85)}.inmenu #help{display:none}
 </style></head><body>
 <div id="uw"></div>
 <div id="stats" class="hud"><div><img class="ico" src="img/heart.png"> Health</div><div class="bar" id="hp"><i></i></div><div><img class="ico" src="img/pizza.png"> Hunger</div><div class="bar" id="hg"><i></i></div><div id="oxw" style="display:none"><div>🫧 Breath</div><div class="bar" id="ox"><i></i></div></div><div id="loc"></div></div>
@@ -92,17 +112,19 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <div id="sf"></div><button id="rp" class="hud"></button>
 <div id="tgt" class="hud"><div id="tn"></div><div id="eb"><i></i></div><div id="pb"><i></i></div></div>
 <div id="hot" class="hud"></div><div id="hname" class="hud"></div><div id="toast" class="hud"></div><div id="flash"></div><div id="dmsg"></div>
-<div id="ov"><div class="card"><h1>🚀 Space Explore</h1>
+<div id="load"><div class="lw"><div class="orb"><i class="orbit"><i class="moon"></i></i><i class="orbit b"><i class="moon"></i></i><i class="pl"></i></div><h1>Space Explore</h1><div class="lbar"><i></i></div><div class="lmsg"><span>Fitting the screen…</span><span>Detecting touch or keyboard controls…</span><span>Loading your saved world…</span><span>Preparing planets and blocks…</span></div></div></div>
+<button id="help" aria-label="How to play" title="How to play">?</button>
+<div id="ov" style="display:none"><div class="card"><h1>🚀 How to play</h1>
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
 <p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
-<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near a <b>peaceful</b> animal or a fish and press <b>5</b> or <b>Shift</b> (or the button) to tame it — it follows you. Predators and serpents just break the rope. You can keep <b>3 pets</b> at a time, and tamed creatures are saved with your world: they never despawn and wait where you left them (they wander off for good if you stay away for 3 days). Go too far, or keep pulling while it is stuck, and the rope snaps. A pet fish dies if you carry it on land for too long. Shift again lets a pet go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><p>💧 <b>Pit water:</b> craft a <b>Bucket</b> (tools tab), aim at a river, the sea or a wet pit and tap <b>5</b> to fill it, then tap <b>5</b> on a pit to pour. A pit only looks full if there was enough water — poured water dries up after 1-2 game days. A pit joined to a river or the sea by a <b>water path</b> is fed for good and never dries. Craft a <b>Channel Spade</b>, hold <b>5</b> and sweep your aim along the ground to draw the path; the water runs along it. Pits with water in them (or built in) never fill themselves in, and everything is saved in your browser.</p><button>Click to play</button></div></div>
+<p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near a <b>peaceful</b> animal or a fish and press <b>5</b> or <b>Shift</b> (or the button) to tame it — it follows you. Predators and serpents just break the rope. You can keep <b>3 pets</b> at a time, and tamed creatures are saved with your world: they never despawn and wait where you left them (they wander off for good if you stay away for 3 days). Go too far, or keep pulling while it is stuck, and the rope snaps. A pet fish dies if you carry it on land for too long. Shift again lets a pet go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><p>💧 <b>Pit water:</b> craft a <b>Bucket</b> (tools tab), aim at a river, the sea or a wet pit and tap <b>5</b> to fill it, then tap <b>5</b> on a pit to pour. A pit only looks full if there was enough water — poured water dries up after 1-2 game days. A pit joined to a river or the sea by a <b>water path</b> is fed for good and never dries. Craft a <b>Channel Spade</b>, hold <b>5</b> and sweep your aim along the ground to draw the path; the water runs along it. Pits with water in them (or built in) never fill themselves in, and everything is saved in your browser.</p><button>Got it</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
 <div><h2>CRAFTING</h2><div id="tabs"></div><div id="recipes"></div></div></div><button id="cl">Close (E / 0)</button></div></div>
 <script src="lib/three.min.js"></script>
-<script>
+<script type="text/plain" id="main">
 const T=THREE,$=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a),UP=new T.Vector3(0,1,0);
 const scene=new T.Scene();scene.background=new T.Color(0x03040a);scene.fog=new T.FogExp2(0x03040a,0);
 const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,60000);cam.rotation.order='YXZ';
@@ -1414,16 +1436,20 @@ function renderCrafting(){
  });
 }
 function refreshMenu(){syncGrid();if(ui){renderGrid();renderCrafting()}}
-$('ov').onclick=()=>{setActive(true);if(touchOn){try{const de=document.documentElement;(de.requestFullscreen||de.webkitRequestFullscreen||(()=>0)).call(de)}catch(e){}}else try{ren.domElement.requestPointerLock()}catch(e){}};
-document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===ren.domElement;if(!locked&&!ui)setActive(false)});
-ren.domElement.addEventListener('mousedown',()=>{drag=true});addEventListener('mouseup',()=>drag=false);
+function openHelp(){try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}setActive(false)}
+function closeHelp(){setActive(true)}
+$('help').onclick=()=>{if(active)openHelp();else closeHelp()};
+$('ov').onclick=e=>{if(e.target===$('ov')||e.target.tagName==='BUTTON')closeHelp()};
+addEventListener('touchend',()=>{if(touchOn&&active&&!document.fullscreenElement){try{const de=document.documentElement;(de.requestFullscreen||de.webkitRequestFullscreen||(()=>0)).call(de)}catch(e){}}},{once:true});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===ren.domElement}); // losing the mouse no longer pauses: click the screen to look around again
+ren.domElement.addEventListener('mousedown',()=>{drag=true;if(active&&!ui&&!touchOn&&!locked)try{ren.domElement.requestPointerLock()}catch(e){}});addEventListener('mouseup',()=>drag=false);
 addEventListener('mousemove',e=>{if(!active||ui||!(locked||drag))return;const dx=e.movementX*.0022;if(P.mode==='ground')P.hd.applyAxisAngle(P.up,-dx);else P.yaw-=dx;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-e.movementY*.0022))});
 $('cl').onclick=()=>openMenu(false);
 let hold=null;
 const HKEY={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Digit6:4,Digit7:5,Digit9:6,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3,Numpad6:4,Numpad7:5,Numpad9:6};
 addEventListener('keydown',e=>{
  const c=e.code;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c))e.preventDefault();
- if(c==='Escape'){if(ui)closeMenu(false);setActive(false);return}
+ if(c==='Escape'){if(ui)closeMenu(false);else if(!active)closeHelp();return}
  if(!active||e.repeat)return;keys[c]=true;
  if((c==='Digit0'||c==='KeyE'||c==='Numpad0')&&!SL.on)openMenu(!ui);
  else if(ui)return; // while the inventory is open only E / 0 / Esc do anything
@@ -1460,7 +1486,7 @@ function enableTouch(){
  if(ps[1])ps[1].innerHTML='<b>Move</b> left stick · <b>Look</b> drag anywhere on the screen · <b>✋</b> tap = place / eat, hold = break &amp; collect, on a creature = hit · <b>🎒</b> inventory';
  if(ps[2])ps[2].innerHTML='<b>⤒</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet\'s clouds and its gravity gently pulls you to the ground.';
  if(ps[3])ps[3].innerHTML='<b>Tap a hotbar slot</b> to select it · open the 🎒 inventory and drag items into the hotbar';
- const ob=document.querySelector('#ov button');if(ob)ob.textContent='Tap to play';
+ const ob=document.querySelector('#ov button');if(ob)ob.textContent='Got it';
  const find=(list,id)=>{for(const t of list)if(t.identifier===id)return t;return null};
  // move stick
  const joy=$('joy'),knob=$('knob');let jid=null;
@@ -1903,4 +1929,11 @@ function restorePos(){
 }
 restorePos();restorePets();
 gameReady=true;loop();
+{const L=$('load'),wait=Math.max(0,800-(performance.now()-(window.__t0||0))); // the game appears straight away once everything is ready (never flashes by)
+ setTimeout(()=>{setActive(true);L.classList.add('done');setTimeout(()=>L.remove(),700);say(touchOn?'Tap ? (top right) for help':'Click the screen to look around · ? = how to play')},wait)}
+</script>
+<script>
+window.__t0=performance.now();
+addEventListener('error',e=>{const l=document.getElementById('load');if(l&&!l.classList.contains('done')){const m=l.querySelector('.lmsg');if(m)m.innerHTML='<span style="opacity:1;animation:none;color:#ff8a8a">Something went wrong while loading — please reload the page.</span>'}});
+requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>{const s=document.createElement('script');s.textContent=document.getElementById('main').textContent;document.body.appendChild(s)},40)));
 </script></body></html>

@@ -113,3 +113,6 @@ Each planet is wrapped in a thick atmosphere (Verdant 330 units high, Ember 290)
 
 ## Where new players start
 A brand-new player (no save yet) spawns on Verdant, on dry land in daylight, about 16 units from the water and facing it. Players with a save resume where they left off; dying still sends you to deep space. See `spawnNearWater` in `src/index.html`.
+
+## Start-up
+The page shows an animated loading screen while the game builds (screen size, touch / keyboard detection, your saved world, planets and blocks), then drops you straight into the game. **How to play** is behind the **?** button at the top right (it pauses the game; press it again, Esc or "Got it" to continue). On a computer, click the screen to capture the mouse for looking around; losing the mouse (Esc) no longer pauses.
