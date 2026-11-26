@@ -823,8 +823,8 @@ function placeRock(){
 function rockSnap(){const f=(v,n)=>+v.toFixed(n);return rocks.map(o=>{const q=o.root.quaternion;return[o.seed,f(o.pos.x,3),f(o.pos.y,3),f(o.pos.z,3),f(q.x,5),f(q.y,5),f(q.z,5),f(q.w,5),f(o.k,3)]})}
 /* ---------- planks: placed as wooden logs (cylinders) that always lie flat (level with the local 'up'); solid along their whole length ---------- */
 const planks=[],PL_R=.38,PL_LEN=4,PL_OFF=[-1.6,-.8,0,.8,1.6],PL_SR=.46; // 5 collision spheres in a row make the log solid like a rock
-const plankGeo=(()=>{const g=new T.CylinderGeometry(PL_R,PL_R,PL_LEN,12);g.rotateZ(Math.PI/2);return g})(); // the log's own axis is local X
-const plankMat=new T.MeshStandardMaterial({map:BT.wood.m.map,roughness:1});
+const plankGeo=(()=>{const g=new T.CylinderGeometry(PL_R,PL_R,PL_LEN,7);g.rotateZ(Math.PI/2);return g})(); // the log's own axis is local X
+const plankMat=mat(0x6b4a2b); // exactly the tree-trunk material (Verdant's trunk colour, flat shaded), so logs match the trees
 const _pa=new T.Vector3(),_pb=new T.Vector3(),_pc=new T.Vector3(),_pM=new T.Matrix4(),_pQ=new T.Quaternion();
 function plankSync(o){const ax=_pa.set(1,0,0).applyQuaternion(o.root.quaternion);o.sp.forEach((a,i)=>a.pos.copy(o.pos).addScaledVector(ax,PL_OFF[i]))}
 function addPlank(pos,quat){
