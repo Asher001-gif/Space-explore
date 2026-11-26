@@ -1848,8 +1848,28 @@ function loop(){
  ren.render(scene,cam);
 }
 /* ---------- resume where you left off (death is the only thing that sends you to deep space) ---------- */
+/* a brand-new player (no save) starts on Verdant, on dry land in daylight, a few steps from the water and facing it */
+function spawnNearWater(){
+ const d=planets.find(p=>p.water);if(!d)return;
+ const n=new T.Vector3(),t=new T.Vector3(),t0=new T.Vector3(),w=new T.Vector3(),hd=new T.Vector3(),pos=new T.Vector3();
+ const at=(a,ang,s,out)=>{t.copy(a).cross(UP);if(t.lengthSq()<1e-4)t.set(1,0,0);t.normalize();t.applyAxisAngle(a,ang);return out.copy(a).multiplyScalar(Math.cos(s/d.R)).addScaledVector(t,Math.sin(s/d.R)).normalize()};
+ let found=false;
+ for(let i=0;i<6000&&!found;i++){
+  n.copy(rndDir());
+  if(wDepth(d,n)>.01||digL(d,n)>0)continue;
+  pos.copy(n).multiplyScalar(d.R).add(d.c);
+  if(i<4000&&sunElev(pos,d)<.3)continue; // start in daylight
+  if(d.treeList.some(tr=>tr.n.dot(n)>Math.cos(5/d.Rs)))continue;
+  let ok=true;for(let k=0;k<8&&ok;k++)if(wDepth(d,at(n,k*Math.PI/4,4,w))>.3)ok=false;if(!ok)continue; // dry feet
+  for(let k=0;k<16;k++){const ang=k*Math.PI/8;if(wDepth(d,at(n,ang,16,w))>1.5){at(n,ang,0.001,w);hd.copy(w).addScaledVector(n,-w.dot(n));
+    const tt=new T.Vector3().copy(at(n,ang,10,w)).sub(n);hd.copy(tt).addScaledVector(n,-tt.dot(n)).normalize();found=true;break}} // water about 16 units away: face it
+ }
+ if(!found)return;
+ cam.position.copy(d.c).addScaledVector(n,surfR(d,n)+EYE);P.vel.set(0,0,0);P.launch=0;P.esc=null;P.escT=0;P.hv=0;P.fall=false;P.vsm=false;jh=null;
+ P.mode='ground';P.pl=d;P.agT=0;P.up.copy(n);P.vu.copy(n);cam.up.copy(n);P.pitch=-.08;P.hd.copy(hd);P.hh=0;P.sw=false;P.air=100;
+ say('Welcome to Verdant — the water is just ahead')}
 function restorePos(){
- const q=savedPos;savedPos=null;if(!q)return;
+ const q=savedPos;savedPos=null;if(!q){spawnNearWater();return}
  const V=a=>Array.isArray(a)&&a.length===3&&a.every(Number.isFinite)?new T.Vector3(a[0],a[1],a[2]):null;
  const p=V(q.p);if(!p||p.distanceTo(SUN)<SUN_R*1.15||p.length()>SUN_DIST+SUN_R*1.6)return; // bad data or inside the sun: keep the default start
  const pitch=Number.isFinite(q.pitch)?Math.max(-1.5,Math.min(1.5,q.pitch)):0;

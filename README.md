@@ -110,3 +110,6 @@ Each planet is wrapped in a thick atmosphere (Verdant 330 units high, Ember 290)
 - **Leaving**: hold Shift/8 for 0.6 s (a bar fills under the crosshair). You rocket straight up through the clouds (FOV widens) until you are clear of the atmosphere, then fly freely. Hopping (tap) is ~2.4 units high.
 - **Planets never share an atmosphere**: atmosphere heights are clamped at start-up so there is always at least a 150-unit clear gap between two atmosphere shells (currently ~320 units; the planets' surfaces are ~940 apart). Asteroids and the respawn point are placed outside every atmosphere.
 - Tuning lives in `PDEF` (`ah`, `sky`, `skyN`, `cloud`, `cloudN`) in `src/index.html`.
+
+## Where new players start
+A brand-new player (no save yet) spawns on Verdant, on dry land in daylight, about 16 units from the water and facing it. Players with a save resume where they left off; dying still sends you to deep space. See `spawnNearWater` in `src/index.html`.
