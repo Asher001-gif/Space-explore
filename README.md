@@ -60,6 +60,18 @@ Bare hands can break blocks, trees and asteroids too, just about 3x slower than 
 ## Doors
 Craft a **Door** from 1 plank or 3 wood blocks (Materials tab). Place it in a gap in a wall: it is 1 wide and 2 high (needs 2 free cells above each other, and takes the direction of the wall it sits in). **Tap** (5 / Space / left-click) while aiming at it to open or close it; **hold** to break it (you get the door back). Closed, it is a solid thin panel that neither you nor any creature can pass; open, it swings aside and everything can walk through. You can't close it with something standing in the doorway. Open/closed is saved with the world.
 
+## Digging the planets (Verdant and Ember)
+Both planets can be mined, but in layers, so nobody can hollow one out for fun. Look at the ground and **hold 5 / Space / left-click** (the label under the crosshair tells you what you are aiming at). Reach is 7. The ground is split into 2-unit columns; each hold removes the top layer of one column.
+- **Dirt** (first 2 layers): any tool, even bare hands, breaks it in about half a second. It just crumbles into dust particles - no item.
+- **Loose rocks** (next 3 layers, rough odd-shaped rocks): pickaxe = fast (about 2.4 s), axe or spear = slow (about 6 s), **bare hands = very slow and every ~0.8 s they hurt you** (-2 health).
+- **Hard rock** (below that): pickaxe = 3.4 s, axe/spear about 24 s, bare hands basically impossible and they hurt (-3). It breaks into the **normal Stone** item (the same one from asteroids, craftable into Stone Blocks).
+- **Bedrock** at 14 layers (28 units): unbreakable.
+- You can't dig in water or in a chasm, under a tree's roots (about 4 units around it), or where a creature stands.
+- **Walls:** the sides of a hole stop you; tap Space to hop up one layer at a time (or place blocks as steps). Blocks can be placed on the floor of a hole.
+- **Thin air:** deeper than 6 units below the surface your **Breath** bar (the one from swimming) starts to drain, faster the deeper you are; it refills when you come up. At zero you take damage and can die. You can't launch into space from inside a hole.
+- **Refill:** a hole that nobody is looking at (out of view and over 60 units away, and with nothing built in it) fills itself again once 3 game days have passed since it was last dug (sleeping in a tube skips time, so it helps). Holes are saved with the world.
+- Tuning lives in the `DIG_*`, `DIRT_L`, `ROCK_L`, `DEEP0` constants and the `LAYERS` table in `src/index.html`.
+
 ## Death messages
 When you die, a short funny line about *how* appears top-left (killed by a predator vs. starved).
 

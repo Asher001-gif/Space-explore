@@ -151,7 +151,7 @@ function wSample(w,x,y,z){ // bilinear lookup of the depth grid for a unit direc
  return (a+(b-a)*fu)*(1-fv)+(c+(e-c)*fu)*fv}
 function wDepth(d,n){_wq.copy(d.rq).conjugate();_wv.copy(n).applyQuaternion(_wq);return wSample(d.water,_wv.x,_wv.y,_wv.z)}
 function cDepth(d,n){_wq.copy(d.rq).conjugate();_wv.copy(n).applyQuaternion(_wq);return wSample(d.chasm,_wv.x,_wv.y,_wv.z)}
-const wet=(d,n)=>d.water?wDepth(d,n)>.02:d.chasm?cDepth(d,n)>.02:false; // wet (or shore slope) / inside a chasm: trees and creatures stay away
+const wetB=(d,n)=>d.water?wDepth(d,n)>.02:d.chasm?cDepth(d,n)>.02:false,wet=(d,n)=>wetB(d,n)||(!!d.dig&&d.dig.size>0&&digL(d,n)>0); // wet (or shore slope) / inside a chasm / dug out: trees and creatures stay away
 function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function buildWater(d){
  const R=d.R,rg=mulberry32(7312),rr=(a,b)=>a+rg()*(b-a),g=new Float32Array(WGW*WGH),V=(x,y,z)=>new T.Vector3(x,y,z);
@@ -318,13 +318,138 @@ const GTEX=(()=>{const S=256,c=document.createElement('canvas');c.width=c.height
   const i=(y*S+x)*4,gr=Math.random(); // R = clumpy noise, G = per-pixel grain (grass blades / grit)
   im.data[i]=v*255;im.data[i+1]=gr*255;im.data[i+2]=0;im.data[i+3]=255}
  g.putImageData(im,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;t.generateMipmaps=true;t.minFilter=T.LinearMipmapLinearFilter;t.magFilter=T.LinearFilter;return t})();
+/* ---------- digging: layered ground you can mine (dirt -> loose rocks -> hard rock -> bedrock) ----------
+   Each planet's surface is split into ~2-unit columns (an equal-angle cube-sphere grid kept in the planet's own frame, like the water map).
+   A column remembers how many 2-unit layers were dug out of it: the terrain shader cuts a hole there and a rough rock-lined pit is built in the hole. */
+const DIG_H=2,DIRT_L=2,ROCK_L=3,DIG_MAX=14,DIG_DAYS=3,DIG_REACH=7,DEEP0=6,DCH=16; // layer height; layers of dirt / loose rock (hard rock below, bedrock at DIG_MAX); game days until an unseen hole fills again; reach; depth where the air gets thin; chunk size (columns)
+const LAYERS=[{n:'Dirt',t:.55,pick:1.7,axe:1,hand:.9},{n:'Loose rocks',t:2.4,pick:1,axe:.4,hand:.2,dmg:2},{n:'Hard rock',t:3.4,pick:1,axe:.14,hand:.06,dmg:3},{n:'Bedrock'}];
+const layerOf=k=>k<DIRT_L?0:k<DIRT_L+ROCK_L?1:k<DIG_MAX?2:3;
+let digVer=0;
+const dgQ=new T.Quaternion(),dgV=new T.Vector3(),dgA=new T.Vector3(),dgB=new T.Vector3(),dgC=new T.Vector3(),dgTp=new T.Vector3(),dgTn=new T.Vector3(),dgFn=new T.Vector3();
+function digInit(d){const N=Math.round(Math.PI/2*d.R/DIG_H);d.dN=N;d.dig=new Map();d.dData=new Uint8Array(6*N*N);d.dChunks=new Map();d.dMeshes=new Map();d.dDirty=new Set();d.dTexT=0;d.dTexW=0;
+ const t=new T.DataTexture(d.dData,3*N,2*N,T.LuminanceFormat,T.UnsignedByteType);t.magFilter=t.minFilter=T.NearestFilter;t.generateMipmaps=false;t.unpackAlignment=1;t.needsUpdate=true;d.dTex=t;
+ d.dcol=d.name==='Ember'?[0x8a4a2a,0x7a5a4a,0x4a3a3a,0x1d1e23]:[0x6b4a2b,0x8c8678,0x555a63,0x1d1e23];
+ d.dMat=new T.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1,metalness:0,side:T.DoubleSide})}
+function dgCell(N,x,y,z){const ax=Math.abs(x),ay=Math.abs(y),az=Math.abs(z);let f,u,v; // column number of a direction (any length) in the planet's own frame
+ if(ax>=ay&&ax>=az){f=x>0?0:1;u=y/ax;v=z/ax}else if(ay>=az){f=y>0?2:3;u=x/ay;v=z/ay}else{f=z>0?4:5;u=x/az;v=y/az}
+ const i=Math.min(N-1,Math.max(0,Math.floor((Math.atan(u)*.6366197723675814+.5)*N))),j=Math.min(N-1,Math.max(0,Math.floor((Math.atan(v)*.6366197723675814+.5)*N)));
+ return f*N*N+j*N+i}
+function dgCorner(N,f,a,b,out){const u=Math.tan((a/N*2-1)*Math.PI/4),v=Math.tan((b/N*2-1)*Math.PI/4); // unit direction of a grid corner (a,b may be fractional)
+ if(f===0)out.set(1,u,v);else if(f===1)out.set(-1,u,v);else if(f===2)out.set(u,1,v);else if(f===3)out.set(u,-1,v);else if(f===4)out.set(u,v,1);else out.set(u,v,-1);return out.normalize()}
+function dgNb(N,key,s){const NN=N*N,f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N,a=i+(s===0?1:s===1?-1:0),b=j+(s===2?1:s===3?-1:0); // neighbour column (0 +i, 1 -i, 2 +j, 3 -j), also across the edges of the cube
+ if(a>=0&&a<N&&b>=0&&b<N)return f*NN+b*N+a;
+ const ma=s===0?i+1:s===1?i:i+.5,mb=s===2?j+1:s===3?j:j+.5;
+ dgCorner(N,f,i+.5,j+.5,dgA);dgCorner(N,f,ma,mb,dgB);dgC.copy(dgB).sub(dgA).multiplyScalar(.6).add(dgB);return dgCell(N,dgC.x,dgC.y,dgC.z)}
+const dgCk=(N,key)=>{const NN=N*N,f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N;return f*1e6+Math.floor(i/DCH)*1000+Math.floor(j/DCH)};
+function dgLocal(d,n){dgQ.copy(d.rq).conjugate();return dgV.copy(n).applyQuaternion(dgQ)}
+function dgKeyOf(d,n){const l=dgLocal(d,n);return dgCell(d.dN,l.x,l.y,l.z)}
+function digL(d,n){if(!d.dig||!d.dig.size)return 0;const e=d.dig.get(dgKeyOf(d,n));return e?e.L:0} // layers dug out of the column in direction n (world frame)
+const groundR=(d,n)=>surfR(d,n)-digL(d,n)*DIG_H; // radius of the ground as it is now, holes included
+const digFloor=(d,pos)=>d.dig&&d.dig.size?-DIG_H*digL(d,dgFn.copy(pos).sub(d.c).normalize()):0; // floor height under you relative to the original ground (0 = untouched, negative = in a hole)
+const surfRL=(d,x,y,z)=>d.water?d.R-.05-wSample(d.water,x,y,z):d.chasm?d.R-.05-wSample(d.chasm,x,y,z):d.R-.05;
+function setDig(d,key,L,t){const N=d.dN,NN=N*N,f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N;
+ if(L>0)d.dig.set(key,{L,t});else d.dig.delete(key);
+ d.dData[(Math.floor(f/3)*N+j)*3*N+(f%3)*N+i]=L;d.dTexT=1;
+ const ck=dgCk(N,key);let s=d.dChunks.get(ck);if(L>0){if(!s)d.dChunks.set(ck,s=new Set());s.add(key)}else if(s)s.delete(key);
+ d.dDirty.add(ck);for(let q=0;q<4;q++)d.dDirty.add(dgCk(N,dgNb(N,key,q)));
+ digVer++}
+/* the pit: rough rock quads (2x2 per cell side, corners shaken by position-based noise so neighbouring faces always meet) */
+function dgJit(p,kk){if(kk<=0)return;const a=kk<=DIRT_L?.14:kk<=DIRT_L+ROCK_L?.6:.2;
+ const x=p.x,y=p.y,z=p.z;p.x=x+(vnoise(x*.43+1.7,y*.43,z*.43)-.5)*2*a;p.y=y+(vnoise(x*.43,y*.43+9.2,z*.43)-.5)*2*a;p.z=z+(vnoise(x*.43,y*.43,z*.43+4.4)-.5)*2*a}
+const dgCo=new T.Color();
+function dgQuad(out,d,P00,P01,P10,P11,kA,kB,lvl){const g=[],kr=[kA,(kA+kB)/2,kB];
+ for(let r=0;r<3;r++){const row=[];for(let c=0;c<3;c++){const fr=r/2,fc=c/2,v=new T.Vector3();
+   v.x=(1-fr)*((1-fc)*P00.x+fc*P01.x)+fr*((1-fc)*P10.x+fc*P11.x);v.y=(1-fr)*((1-fc)*P00.y+fc*P01.y)+fr*((1-fc)*P10.y+fc*P11.y);v.z=(1-fr)*((1-fc)*P00.z+fc*P01.z)+fr*((1-fc)*P10.z+fc*P11.z);
+   dgJit(v,kr[r]);row.push(v)}g.push(row)}
+ for(let r=0;r<2;r++)for(let c=0;c<2;c++){const a=g[r][c],b=g[r][c+1],e=g[r+1][c+1],f=g[r+1][c],kk=(kr[r]+kr[r+1])/2;
+  const cx=(a.x+e.x)/2,cy=(a.y+e.y)/2,cz=(a.z+e.z)/2;
+  dgCo.setHex(d.dcol[layerOf(lvl)]);const sh=Math.max(.22,(1+(vnoise(cx*.7+3.1,cy*.7,cz*.7)-.5)*.36)*(1-.035*Math.min(kk,14)));
+  for(const v of [a,b,e,a,e,f]){out.pos.push(v.x,v.y,v.z);out.col.push(dgCo.r*sh,dgCo.g*sh,dgCo.b*sh)}}}
+function dgBuild(d,ck){
+ const old=d.dMeshes.get(ck);if(old){d.mesh.remove(old);old.geometry.dispose();d.dMeshes.delete(ck)}
+ const set=d.dChunks.get(ck);if(!set||!set.size){d.dChunks.delete(ck);return}
+ const N=d.dN,NN=N*N,out={pos:[],col:[]},SC=[[1,2],[0,3],[3,2],[0,1]];
+ for(const key of set){const e=d.dig.get(key);if(!e)continue;const L=e.L,f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N;
+  const D=[],B=[];for(const[a,b]of [[i,j],[i+1,j],[i+1,j+1],[i,j+1]]){const v=dgCorner(N,f,a,b,new T.Vector3());D.push(v);B.push(surfRL(d,v.x,v.y,v.z))}
+  const at=(c,kk)=>D[c].clone().multiplyScalar(B[c]-kk*DIG_H+(kk===0?.06:0)); // the very top edge sits a hair above the ground so no gap shows
+  dgQuad(out,d,at(0,L),at(1,L),at(3,L),at(2,L),L,L,L); // the floor
+  for(let s=0;s<4;s++){const nb=d.dig.get(dgNb(N,key,s)),nl=nb?nb.L:0;if(nl>=L)continue;const[a,b]=SC[s]; // a wall wherever the next column is shallower
+   for(let k=nl;k<L;k++)dgQuad(out,d,at(a,k),at(b,k),at(a,k+1),at(b,k+1),k,k+1,k)}}
+ if(!out.pos.length)return;
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(out.pos,3));g.setAttribute('color',new T.Float32BufferAttribute(out.col,3));g.computeBoundingSphere();
+ const m=new T.Mesh(g,d.dMat);m.raycast=()=>{};d.mesh.add(m);d.dMeshes.set(ck,m)}
+/* aiming at the ground: walk the view ray until it is inside the ground (holes included), then refine */
+function dgInside(d,t){dgTp.copy(cam.position).addScaledVector(fwd,t).sub(d.c);const r=dgTp.length();dgTn.copy(dgTp).multiplyScalar(1/r);return r<groundR(d,dgTn)}
+function terrainRay(maxD){
+ for(const d of planets){const dc=cam.position.distanceTo(d.c);if(dc>d.R+maxD+6||dc<d.R-DIG_MAX*DIG_H-8)continue;
+  let t=.3;for(;t<=maxD+.01;t+=.35)if(dgInside(d,t))break;
+  if(t>maxD+.01)continue;
+  let lo=Math.max(0,t-.35),hi=t;for(let q=0;q<6;q++){const m=(lo+hi)/2;if(dgInside(d,m))hi=m;else lo=m}
+  dgInside(d,hi);const n=dgTn.clone();
+  return{d,n,key:dgKeyOf(d,n),L:digL(d,n),dist:hi,p:cam.position.clone().addScaledVector(fwd,hi)}}
+ return null}
+function dgLabel(tg){if(wetB(tg.d,tg.n))return '';const L=LAYERS[layerOf(tg.L)];
+ if(!L.t)return 'Bedrock (unbreakable)';
+ return L.n+(L.dmg&&!inv.pickaxe&&!inv.axe&&!inv.spear?' ⚠ hurts bare-handed':'')}
+/* dust and rock bits */
+const bitG=new T.BoxGeometry(.28,.28,.28),bitM={},bits=[];
+function puff(d,p,n,lay,cnt){const mk=d.name+lay,m=bitM[mk]||(bitM[mk]=new T.MeshStandardMaterial({color:d.dcol[lay],roughness:1}));
+ for(let i=0;i<cnt;i++){const b=new T.Mesh(bitG,m);b.position.copy(p).addScaledVector(rndDir(),.45);b.raycast=()=>{};scene.add(b);
+  bits.push({b,v:rndDir().multiplyScalar(rnd(1.5,4)).addScaledVector(n,rnd(2,5)),n:n.clone(),t:0,life:rnd(.6,1.1)})}}
+function stepBits(dt){for(let i=bits.length-1;i>=0;i--){const g=bits[i];g.t+=dt;if(g.t>=g.life){scene.remove(g.b);bits.splice(i,1);continue}
+  g.v.addScaledVector(g.n,-24*dt);g.b.position.addScaledVector(g.v,dt);g.b.rotation.x+=dt*6;g.b.rotation.y+=dt*4;const s=1-g.t/g.life*.5;g.b.scale.setScalar(s)}}
+/* mining */
+function digStep(tg){const d=tg.d,e=d.dig.get(tg.key)||{L:0,t:0},lay=layerOf(e.L);if(lay>2)return;
+ if(lay===2){inv.stone++;say('+1 stone')} // hard rock breaks into ordinary stone (same item as from asteroids)
+ puff(d,tg.p,tg.n,lay,lay===0?9:12);setDig(d,tg.key,e.L+1,worldTime);save()}
+function digHold(tg,dt){hold.broke=true;const d=tg.d,L=LAYERS[layerOf(tg.L)],n=tg.n;
+ const bad=wetB(d,n)?"You can't dig in water or in the chasm":!L.t?'Bedrock — nothing can break this':null;
+ if(bad){$('pb').style.display='none';if(hold.warned!==bad){hold.warned=bad;say(bad)}return}
+ const no=d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null;
+ if(no){$('pb').style.display='none';if(hold.warned!==no){hold.warned=no;say(no)}return}
+ const k=tg.key+':'+tg.L;if(hold.dk!==k){hold.dk=k;hold.p=0;hold.hr=0}
+ const pick=inv.pickaxe>0,axe=inv.axe>0||inv.spear>0,mul=pick?L.pick:axe?L.axe:L.hand;
+ hold.p+=dt*mul/L.t;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';
+ if(L.dmg&&!pick&&!axe){hold.hr=(hold.hr||0)+dt;if(hold.hr>=.8){hold.hr=0;hurt(L.dmg,'rock');say('🤕 Ouch! Bare hands against rock — a pickaxe makes this easy')}}
+ if(hold.p>=1){hold.p=0;hold.dk=null;digStep(tg)}}
+/* walking: a wall of a hole that is higher than you can reach stops you (hop to climb one layer); the sides of a wall let you slide */
+const dgW=new T.Vector3(),dgWa=new T.Vector3(),dgWb=new T.Vector3();
+function digBlocked(d,w,dt){const l=w.length();if(l<1e-6)return false;dgW.copy(cam.position).addScaledVector(w,dt+.5/l).sub(d.c).normalize();return -DIG_H*digL(d,dgW)>P.hh+.45}
+function digWallSlide(d,w,dt){if(!digBlocked(d,w,dt))return;
+ dgWa.copy(P.hd).multiplyScalar(w.dot(P.hd));dgWb.copy(rgt).multiplyScalar(w.dot(rgt));w.set(0,0,0);
+ if(!digBlocked(d,dgWa,dt))w.add(dgWa);if(!digBlocked(d,dgWb,dt))w.add(dgWb)}
+/* upkeep: build pit meshes, upload the hole mask, and fill holes nobody is looking at after a few game days */
+const dgFr=new T.Frustum(),dgFm=new T.Matrix4(),dgRel=new T.Vector3(),dgWp=new T.Vector3();let dgT=0;
+function digTick(dt){
+ for(const d of planets){let n=0;for(const ck of d.dDirty){dgBuild(d,ck);d.dDirty.delete(ck);if(++n>=3)break}
+  if(d.dTexT){d.dTexW-=dt;if(d.dTexW<=0){d.dTex.needsUpdate=true;d.dTexT=0;d.dTexW=.15}}}
+ dgT-=dt;if(dgT>0)return;dgT=5;
+ dgFm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);dgFr.setFromProjectionMatrix(dgFm);
+ for(const d of planets){if(!d.dig.size)continue;const age=(d.name==='Verdant'?DAY_V:DAY_E)*DIG_DAYS,N=d.dN,NN=N*N,old=[];
+  for(const[key,e]of d.dig)if(worldTime-e.t>=age)old.push(key);
+  if(!old.length)continue;
+  let held=null;const crel=dgRel.copy(cam.position).sub(d.c);
+  for(const key of old.slice(0,200)){
+   const f=Math.floor(key/NN),r=key-f*NN,j=Math.floor(r/N),i=r-j*N;
+   dgCorner(N,f,i+.5,j+.5,dgA);dgA.applyQuaternion(d.rq); // world direction of the column
+   dgWp.copy(dgA).multiplyScalar(d.R).add(d.c);
+   if(dgWp.distanceTo(cam.position)<60)continue; // too close to be sure nobody is in it
+   if(dgFr.containsPoint(dgWp)&&dgA.dot(crel)>d.R*.9)continue; // in your view
+   if(!held){held=new Set();for(const o of blocks.values()){dgFn.copy(o.pos).sub(d.c);const l=dgFn.length();if(l>d.R+30||l<d.R-DIG_MAX*DIG_H-4)continue;const k0=dgKeyOf(d,dgFn.multiplyScalar(1/l));held.add(k0);for(let q=0;q<4;q++)held.add(dgNb(N,k0,q))}}
+   if(held.has(key))continue; // something is built in it
+   setDig(d,key,0,0)}}}
 function groundMat(d){
- const ember=d.name==='Ember',U={uG:{value:GTEX},uGC:{value:ember?.75:.6},uTint:{value:ember?new T.Color(.72,.62,.55):new T.Color(1.14,1.02,.74)}};
+ digInit(d);
+ const ember=d.name==='Ember',U={uDM:{value:d.dTex},uDN:{value:d.dN},uG:{value:GTEX},uGC:{value:ember?.75:.6},uTint:{value:ember?new T.Color(.72,.62,.55):new T.Color(1.14,1.02,.74)}};
  const mt=new T.MeshStandardMaterial({vertexColors:true,flatShading:false,roughness:.95,metalness:0});
  mt.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGP;varying vec3 vGN;').replace('#include <begin_vertex>','#include <begin_vertex>\nvGP=position;vGN=normal;');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
-uniform sampler2D uG;uniform float uGC;uniform vec3 uTint;varying vec3 vGP;varying vec3 vGN;
+  sh.fragmentShader=sh.fragmentShader.replace('#include <clipping_planes_fragment>',`#include <clipping_planes_fragment>
+{vec3 q=normalize(vGP),a=abs(q);float f,u,v; // dug-out columns are cut out of the ground
+ if(a.x>=a.y&&a.x>=a.z){f=q.x>0.?0.:1.;u=q.y/a.x;v=q.z/a.x;}else if(a.y>=a.z){f=q.y>0.?2.:3.;u=q.x/a.y;v=q.z/a.y;}else{f=q.z>0.?4.:5.;u=q.x/a.z;v=q.y/a.z;}
+ float ci=clamp(floor((atan(u)*.6366197723675814+.5)*uDN),0.,uDN-1.),cj=clamp(floor((atan(v)*.6366197723675814+.5)*uDN),0.,uDN-1.);
+ if(texture2D(uDM,vec2((mod(f,3.)*uDN+ci+.5)/(3.*uDN),(floor(f/3.)*uDN+cj+.5)/(2.*uDN))).r>.001)discard;}`).replace('#include <common>',`#include <common>
+uniform sampler2D uDM;uniform float uDN;uniform sampler2D uG;uniform float uGC;uniform vec3 uTint;varying vec3 vGP;varying vec3 vGN;
 vec2 gTri(float s,vec3 w){return texture2D(uG,vGP.yz*s).rg*w.x+texture2D(uG,vGP.xz*s).rg*w.y+texture2D(uG,vGP.xy*s).rg*w.z;}`)
   .replace('#include <color_fragment>',`#include <color_fragment>
 {vec3 gw=pow(abs(normalize(vGN)),vec3(4.));gw/=(gw.x+gw.y+gw.z);
@@ -894,7 +1019,7 @@ function place(type){
  ray.far=16;ray.set(cam.position,fwd);
  const bh=ray.intersectObjects(targets.filter(m=>m.userData.o.kind==='block'),false)[0];
  let tp=1e9,pn=null,pc=null;
- for(const d of planets){ray.far=16;ray.set(cam.position,fwd);const hh=ray.intersectObject(d.mesh,false)[0];if(hh&&hh.distance<tp&&hh.distance<16){tp=hh.distance;pc=d;pn=hh.point.clone().sub(d.c).normalize()}}
+ {const tg=terrainRay(16);if(tg){tp=tg.dist;pc=tg.d;pn=tg.n.clone()}}
  let s,i=0,j=0,k=0,fresh=false;
  if(bh&&bh.distance<=tp){ // against a block you aim at: same grid, next cell over
   const o=bh.object.userData.o;let n=(o.door||o.tube)?bh.face.normal.clone().transformDirection(bh.object.matrixWorld).applyQuaternion(o.s.iq):bh.face.normal;
@@ -908,15 +1033,15 @@ function place(type){
   else{fresh=true; // a new grid: 'up' = the ground normal here, 'forward' = the way you are facing, first block sits flat on the ground
    if(pc){const t=fwd.clone().addScaledVector(pn,-fwd.dot(pn));if(t.lengthSq()<1e-4)t.set(0,0,1).addScaledVector(pn,-pn.z);if(t.lengthSq()<1e-4)t.set(1,0,0).addScaledVector(pn,-pn.x);t.normalize();
     _M.makeBasis(new T.Vector3().crossVectors(pn,t),pn,t);
-    s=mkStruct(pc.c.clone().addScaledVector(pn,surfR(pc,pn)+1),new T.Quaternion().setFromRotationMatrix(_M))}
+    s=mkStruct(pc.c.clone().addScaledVector(pn,groundR(pc,pn)+1),new T.Quaternion().setFromRotationMatrix(_M))}
    else s=mkStruct(ref,new T.Quaternion())}
-  if(pc&&!fresh)for(let n=0;n<4;n++){const v=cellPos(s,i,j,k).sub(pc.c);if(v.length()>=surfR(pc,v)-.5)break;j++} // cell mostly buried: lift it one cell along the grid's up
+  if(pc&&!fresh)for(let n=0;n<4;n++){const v=cellPos(s,i,j,k).sub(pc.c);if(v.length()>=groundR(pc,v)-.5)break;j++} // cell mostly buried: lift it one cell along the grid's up
  }
  const p=cellPos(s,i,j,k),key=keyOf(s,i,j,k);
  let dax=0,dsw=1;if(type==='door'){const q=doorOrient(s,i,j,k);dax=q.ax;dsw=q.sw;p.hx=dax?.2:1;p.hz=dax?1:.2}
  if(type==='tube')p.hx=p.hz=TUBE_R;
  // only refuse a cell that would really overlap you: test your actual collision spheres (head/body + feet on the ground, one bigger sphere in space) with a hair of clearance, so a block right next to you is allowed but never traps you
- if(blocks.has(key)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04))||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<surfR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
+ if(blocks.has(key)||playerSph().some(q=>sbDist2(q.p,p)<(q.r+.04)*(q.r+.04))||cubeBusy(p)||planets.some(d=>{const v=p.clone().sub(d.c),L=v.length();return L<d.R+3&&L<groundR(d,v.divideScalar(L||1))-.9})){say("Can't place there");return}
  if(type==='door'||type==='tube'){const p2=cellPos(s,i,j+1,k);p2.hx=p.hx;p2.hz=p.hz;if(blocks.has(keyOf(s,i,j+1,k))||playerSph().some(q=>sbDist2(q.p,p2)<(q.r+.04)*(q.r+.04))||cubeBusy(p2)){say('A '+(type==='door'?'door':'sleeping tube')+' needs a free spot 2 blocks high');return}}
  if(!s.id)regStruct(s);
  const o=type==='door'?addDoor(s,i,j,k,dax,dsw,false):type==='tube'?addTube(s,i,j,k):addBlock(type,s,i,j,k);inv[type]--;if(nbrs(o).some(n=>n.ag))floodAG(o);save();
@@ -1035,14 +1160,15 @@ function posSnap(){ // exact spot, view and mode, so the game resumes right wher
  if(P.mode==='ground'&&P.pl)o.pl=P.pl.ag?'AG':planets.indexOf(P.pl);
  return o;
 }
-let _bc={v:-1,s:'[]',ids:[]},_lastSave='',_ticked=false; // _bc: the blocks part of the save, rebuilt only when blocks changed
+let _bc={v:-1,s:'[]',ids:[]},_dc={v:-1,s:'[]'},_lastSave='',_ticked=false; // _bc: the blocks part of the save, rebuilt only when blocks changed
 function save(){
  try{
   if(_bc.v!==blocksVer){const b=[],ids=new Set();blocks.forEach(o=>{if(o.top)return;ids.add(o.s.id);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
    _bc={v:blocksVer,s:JSON.stringify(b),ids:[...ids]}}
+  if(_dc.v!==digVer)_dc={v:digVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.dig.forEach((e,k)=>a.push(k,e.L,Math.round(e.t)));return a}))}; // holes per planet: [grid size, column, layers, time dug, ...]
   const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
   const rest=JSON.stringify({inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
-  const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+','+rest.slice(1);
+  const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+',"dig":'+_dc.s+','+rest.slice(1);
   if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
 }
@@ -1051,12 +1177,15 @@ function loadSave(){
   const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;
   const d=JSON.parse(raw);if(!d||d.v!==1)return;
   const refund={};
+  if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin(d.ang)}
+  if(Array.isArray(d.dig))d.dig.forEach((a,pi)=>{const pl=planets[pi];if(!pl||!Array.isArray(a)||a[0]!==pl.dN)return;
+   for(let q=1;q+2<a.length;q+=3){const k=a[q],L=a[q+1],t=a[q+2];if(Number.isInteger(k)&&k>=0&&k<6*pl.dN*pl.dN&&Number.isInteger(L)&&L>0&&L<=DIG_MAX&&Number.isFinite(t))setDig(pl,k,L,Math.min(t,worldTime))}});
   if(d.lv>=3){
    (d.structs||[]).forEach(a=>{if(Array.isArray(a)&&a.length===8&&a.every(Number.isFinite)&&a[0]>0)regStruct(mkStruct(new T.Vector3(a[1],a[2],a[3]),new T.Quaternion(a[4],a[5],a[6],a[7]),a[0]))});
    (d.blocks||[]).forEach(([type,sid,i,j,k,ag,op,dax,dsw])=>{
     const g=structs.get(sid);if(!BT[type]||!g||![i,j,k].every(Number.isInteger)||blocks.has(keyOf(g,i,j,k)))return;
     const pos=cellPos(g,i,j,k);
-    if(planets.some(p=>{const v=pos.clone().sub(p.c);return v.length()<p.R-.9})){refund[type]=(refund[type]||0)+1;return}
+    if(planets.some(p=>{const v=pos.clone().sub(p.c);return v.length()<p.R-.9-digL(p,v)*DIG_H})){refund[type]=(refund[type]||0)+1;return}
     if(type==='door'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addDoor(g,i,j,k,dax?1:0,dsw===-1?-1:1,!!op);if(ag){markAG(lo);markAG(lo.door.hi)}}else refund.door=(refund.door||0)+1;return}
     if(type==='tube'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addTube(g,i,j,k);if(ag){markAG(lo);markAG(lo.tube.hi)}}else refund.tube=(refund.tube||0)+1;return}
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
@@ -1083,6 +1212,8 @@ function hurt(x,why,by){if(SL.on)return; // asleep in the tube: nothing can hurt
  P.why=why;P.by=by;P.hp-=x;$('flash').style.opacity=.45;setTimeout(()=>$('flash').style.opacity=0,200);if(P.hp<=0)die()}
 const DEATHS={
  drown:['You forgot to come up for air. 🫧','Glub glub. The ocean wins.','You tried to breathe water. It did not go well.','Hold Space to rise next time! 🌊'],
+ thin:['You dug too deep and ran out of air. ⛏','The mine was lovely. The air was not.','Down there, nobody can hear you gasp.','You should have climbed out for a breath.'],
+ rock:['Your bare hands lost an argument with a rock. 🪨','You punched a mountain. The mountain won.'],
  pred:['You tried to help a {n}. It helped itself to you.','You tried to pet a {n}. It had other plans.','Plot twist: you were the snack. 🍖','The {n} says thanks for the meal.'],
  snake:['You tried to pet a {n}. It was not a noodle. 🐍','The {n} says hello. Fatally.','You went down the snake hole. The snake hole was occupied.','Ssssurprise! You were dinner.'],
  hunger:['You skipped lunch. Forever. 🍎','Food was RIGHT there. You just… didn’t.','Your stomach filed a complaint. Fatal.','Died of hunger. Apples exist, you know.'],
@@ -1362,7 +1493,7 @@ function aim(up){
 /* what is under / over you: the top of the highest block you are above (that you can reach: at most .45 above your feet) = floor height above the planet surface,
    and the underside of the lowest block above your head = ceiling. Blocks beside you are walls (colRes). */
 function supportAt(d,pos,up,hh){
- let f=0,c=1e9;const sr=surfR(d,up);
+ let f=digFloor(d,pos),c=1e9;const sr=surfR(d,up);
  for(const o of nearOf(NB_COL,pos)){const b=o.pos;if(o.open||b.distanceToSquared(pos)>81)continue;
   if(o.s.up.dot(up)<.8)continue;
   _L.copy(pos).sub(b).applyQuaternion(b.iq);if(Math.abs(_L.x)>(b.hx||1)+.4||Math.abs(_L.z)>(b.hz||1)+.4)continue; // you are over / under this block
@@ -1391,9 +1522,10 @@ function swimStep(dt,d){ // in water: you sink unless you hold jump; arrow keys 
 const _hc={};
 function setH(id,h){if(_hc[id]!==h){_hc[id]=h;$(id).innerHTML=h}}
 function setSt(id,p,v,kid){const k=id+'.'+p;if(_hc[k]!==v){_hc[k]=v;(kid?$(id).firstChild:$(id)).style[p]=v}}
+let deepW=false;
 function breathTick(dt){
- const under=P.mode==='ground'&&P.sw&&P.swY<0;
- if(under){P.air=Math.max(0,P.air-100/AIR_T*dt);if(P.air<=0)hurt(8*dt,'drown')}else P.air=Math.min(100,P.air+60*dt);
+ const under=P.mode==='ground'&&P.sw&&P.swY<0,dep=P.mode==='ground'&&!P.sw&&P.pl&&P.pl.dig&&P.pl.dig.size?-P.hh:0,deep=dep>DEEP0; // deep in a hole the air gets thin: the deeper, the faster the breath bar drains
+ if(under||deep){const k=under?1:.6+(dep-DEEP0)/10;P.air=Math.max(0,P.air-100/AIR_T*k*dt);if(P.air<=0)hurt(8*dt,under?'drown':'thin');if(deep&&!deepW){deepW=true;say('😮‍💨 The air is thin down here — climb out!')}}else{P.air=Math.min(100,P.air+60*dt);if(!deep)deepW=false}
  setSt('oxw','display',P.air<99.5?'block':'none');setSt('ox','width',(Math.round(P.air*2)/2)+'%',1)}
 let uwK=0;
 function uwUpdate(dt){ // underwater look: blue fog, darker with depth
@@ -1432,8 +1564,9 @@ function groundStep(dt){
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();rgt.crossVectors(P.hd,up).normalize();
  const[f,r]=inp(),want=P.hd.clone().multiplyScalar(f).addScaledVector(rgt,r);if(want.lengthSq()>0)want.normalize().multiplyScalar((d.spd||11)*slow);
  if(d.chasm&&!P.fall&&sf<.5)chasmMove(d,up,want,f,dt);
+ if(d.dig.size&&want.lengthSq()>0)digWallSlide(d,want,dt); // walls of holes
  cam.position.addScaledVector(want,dt);colRes(cam.position,up,null,null);
- up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE+P.hh,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(P.hh>0?1:1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
+ up.copy(cam.position).sub(d.c).normalize();{const tr=surfR(d,up)+EYE+P.hh,cur=cam.position.distanceTo(d.c),L=cur+(tr-cur)*(P.hh!==0?1:1-Math.exp(-30*dt));cam.position.copy(d.c).addScaledVector(up,L)}
  P.hd.addScaledVector(up,-P.hd.dot(up)).normalize();aim(up);
 }
 /* walking on Gravity Generator blocks: "down" = toward the nearest Gravity Generator surface, so edges, corners, walls and
@@ -1461,6 +1594,7 @@ function agGround(dt){
 }
 function leave(){ // off the ground and away: through the clouds into free space (or just off a Gravity Generator block)
  if(P.mode!=='ground')return;
+ if(P.pl&&P.pl.dig&&P.hh<-1){say('🕳 Climb out of the hole before launching');return}
  if(P.pl&&P.pl.chasm&&cDepth(P.pl,P.up)>6){say('🕳 You cannot launch from inside a chasm — climb the rock wall (hold W / ↑)');return}
  cam.getWorldDirection(fwd);const up=_a.copy(P.up),pl=P.pl,A=inAtmo();
  P.yaw=Math.atan2(-fwd.x,-fwd.z);P.pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y)));
@@ -1580,7 +1714,8 @@ function loop(){
   spawnTick(dt);{const ar2=ANIM_R*ANIM_R;planets.forEach(d=>d.animals.forEach(a=>{if(a.base.distanceToSquared(cam.position)<ar2)stepAnimal(a,dt)}))}
   targets.forEach(m=>{if(m.userData.spin)m.rotation.y+=m.userData.spin*dt});
   ray.far=16;ray.set(cam.position,fwd);const h=ray.intersectObjects(targets,false),o=h.length?h[0].object.userData.o:null;
-  setH('tn',o?o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='snake'?' (dangerous!)':'')+(o.pet?' (pet)':o.owned?' (tamed)':''):'');
+  const tg=P.mode==='ground'&&!P.sw&&!P.pl.ag?terrainRay(DIG_REACH):null,tgOK=!!tg&&(!o||tg.dist<h[0].distance); // the ground you are aiming at (if nothing is closer)
+  setH('tn',tgOK?dgLabel(tg):o?o.name.replace(/[^\x20-\x7E]/g,'').trim()+(o.pred?' (predator!)':'')+(o.kind==='snake'?' (dangerous!)':'')+(o.pet?' (pet)':o.owned?' (tamed)':''):'');
   {const sb=o&&(o.kind==='animal'||o.kind==='snake')&&o.ht&&performance.now()-o.ht<4500; // a creature's health bar (no numbers) shows only while you are fighting it
    setSt('eb','display',sb?'block':'none');if(sb)setSt('eb','width',(Math.round(Math.max(0,o.hp)/o.mhp*50)*2)+'%',1)}
   aimObj=o;
@@ -1588,13 +1723,14 @@ function loop(){
    if(hold.eating||(held>250&&hk&&ITEMS[hk].use)){hold.eating=true;hold.broke=true;hold.o=null;hold.p=0;
     if(held>250&&hk&&ITEMS[hk].use){hold.e=(hold.e||0)+dt/.7;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.e*100)+'%';if(hold.e>=1){hold.e=0;useItem(hk)}}else $('pb').style.display='none'}
    else if(o&&(o.kind==='animal'||o.kind==='fish'||o.kind==='snake')){hold.broke=true;hold.p=0;hold.o=null;$('pb').style.display='none';if(held>250&&now>=hold.nh){hit(o);hold.nh=now+450}} // keep hitting while held
-   else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
+   else if(held>250&&tgOK&&!(o&&o.kind==='block'&&o.pos.distanceTo(cam.position)<tg.dist)){hold.o=null;digHold(tg,dt)}
+   else if(held>250&&o){hold.broke=true;if(hold.o!==o){hold.o=o;hold.p=0;hold.dk=null}hold.p+=dt*toolMul(o)/o.time;$('pb').style.display='block';$('pb').firstChild.style.width=Math.min(100,hold.p*100)+'%';if(hold.p>=1){finish(o);hold.o=null;hold.p=0;$('pb').style.display='none'}}
    else if(held>250){hold.p=0;hold.o=null;$('pb').style.display='none'}}
   setSt('hp','width',(Math.round(Math.max(0,P.hp)*2)/2)+'%',1);setSt('hg','width',(Math.round(P.hg*2)/2)+'%',1);
-  petTick(dt);ownedTick(dt);petUI();treeTick(dt);
+  petTick(dt);ownedTick(dt);petUI();treeTick(dt);digTick(dt);
  }
  syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
- stepGlitter(dt);SKY.position.copy(cam.position);
+ stepGlitter(dt);stepBits(dt);SKY.position.copy(cam.position);
  ren.render(scene,cam);
 }
 /* ---------- resume where you left off (death is the only thing that sends you to deep space) ---------- */
