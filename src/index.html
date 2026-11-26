@@ -118,7 +118,7 @@ body.touch.playing #tc{display:block}body.touch.inmenu #tc{display:none}
 <p>Eat to survive. Fly to the two planets for food, hunt animals, mine asteroids, build in space.</p>
 <p><b>Move</b> WASD / Arrows · <b>Look</b> mouse (click to capture, Esc to release)</p><p><b>Space / 8</b> = tap to hop on a planet, <b>hold</b> to launch up through the clouds into space. Fly down through a planet's clouds and its gravity gently pulls you to the ground.</p>
 <p><b>1-4, 6, 7, 9 / mouse wheel / [ ]</b> select hotbar slot · <b>5 / left-click</b> tap = place / eat, hold = eat food / break &amp; collect, on a creature = hit (hand 1 dmg, pickaxe/axe 2, spear 5) · <b>0 / E</b> inventory (drag items into the hotbar)</p>
-<p>Meat &amp; apples = food · Wood · Stone · Hull blocks</p>
+<p>Meat, apples, potatoes &amp; mendel peas = food (plant them, water once with a bucket) · Wood · Stone · Hull blocks</p>
 <p>⚠ Red animals are predators — they spawn where it is night around you (the side of the planet facing away from the sun) and chase you!</p><p>✨ Animals can drop a Gravity Generator : put it in your hotbar, select it and tap 5 on a block — that block and every block connected to it gets gravity for good. Space / 8 to jump off.</p><p>🌊 Verdant has a deep ocean and rivers. In water you sink: <b>hold Space</b> to rise to the surface, <b>arrow keys / WASD</b> to swim to shore — you can't hold your breath forever!</p><p>🐍 Giant Chasm Serpents sleep and slither on the floors of Ember's chasms. They wake when you get close, chase you and bite — but they never leave the chasm.</p><p>😴 A Sleeping Tube (2 leather + 1 wood block) is 2 blocks high: place it, then <b>tap it</b> to sleep. The screen fades out; slept at night, you wake at day. After waking you can't sleep again for a short while.</p><p>🪢 <b>Rope</b> (2 leather): select it, stand near a <b>peaceful</b> animal or a fish and press <b>5</b> or <b>Shift</b> (or the button) to tame it — it follows you. Predators and serpents just break the rope. You can keep <b>3 pets</b> at a time, and tamed creatures are saved with your world: they never despawn and wait where you left them (they wander off for good if you stay away for 3 days). Go too far, or keep pulling while it is stuck, and the rope snaps. A pet fish dies if you carry it on land for too long. Shift again lets a pet go.</p><p>🕳 Ember has deep chasms. If you fall in, <b>hold W / ↑ while facing the rock wall</b> to climb out slowly — let go and you slide back down. You can't launch from inside one.</p><p>💧 <b>Pit water:</b> craft a <b>Bucket</b> (tools tab), aim at a river, the sea or a wet pit and tap <b>5</b> to fill it, then tap <b>5</b> on a pit to pour. A pit only looks full if there was enough water — poured water dries up after 1-2 game days. A pit joined to a river or the sea by a <b>water path</b> is fed for good and never dries. Craft a <b>Channel Spade</b>, hold <b>5</b> and sweep your aim along the ground to draw the path; the water runs along it. Pits with water in them (or built in) never fill themselves in, and everything is saved in your browser.</p><button>Got it</button></div></div>
 <div id="menu"><div class="card inv"><div class="invwrap"><div><h2>INVENTORY</h2><div id="grid"></div><div class="sub">HOTBAR · QUICK SLOTS</div><div id="hbrow"></div>
 <p class="hint">Drag any item onto another slot to move or swap it. Items in the bottom row are your hotbar — use them in-game · Hotbar keys: 1 2 3 4 6 7 9, mouse wheel, [ ] · Shift+click sends an item to the other section · double-click or right-click food / medicine to use it</p></div>
@@ -426,7 +426,7 @@ function digStep(tg){const d=tg.d,e=d.dig.get(tg.key)||{L:0,t:0},lay=layerOf(e.L
 function digHold(tg,dt){hold.broke=true;const d=tg.d,L=LAYERS[layerOf(tg.L)],n=tg.n;
  const bad=wetB(d,n)?"You can't dig in water or in the chasm":tg.L>=DIG_MAX?'Too deep':null;
  if(bad){$('pb').style.display='none';if(hold.warned!==bad){hold.warned=bad;say(bad)}return}
- const no=d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null;
+ const no=d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))||d.crops.some(s=>s.n.dot(n)>Math.cos(1.6/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null;
  if(no){$('pb').style.display='none';if(hold.warned!==no){hold.warned=no;say(no)}return}
  const k=tg.key+':'+tg.L;if(hold.dk!==k){hold.dk=k;hold.p=0;hold.hr=0}
  const pick=inv.pickaxe>0,axe=inv.axe>0||inv.spear>0,mul=pick?L.pick:axe?L.axe:L.hand;
@@ -532,6 +532,7 @@ function waterRay(maxD){
  return null}
 /* bucket: empty -> fill at a river / the sea / a wet pit; full -> pour into a pit. One bucket = 1 layer of water in one column. */
 function useBucket(k){
+ if(k==='wbucket'&&aimObj&&aimObj.kind==='crop'&&aimObj.base.distanceTo(cam.position)<7){const o=aimObj;if(o.wet){say('This plant is already watered');return}waterCrop(o);inv.wbucket--;inv.bucket++;say('💧 Watered — it will be grown in 2-3 days');save();return}
  if(P.mode!=='ground'||!P.pl||P.sw||P.pl.ag){say('🪣 Stand on a planet to use the bucket');return}
  const tg=terrainRay(DIG_REACH);
  if(k==='bucket'){
@@ -549,7 +550,7 @@ function useBucket(k){
  setW(d,tg.key,e,e.w+Math.min(1,room));inv.wbucket--;inv.bucket++;
  say(fed?'💧 Poured — this pit is fed by the river':e.w>=e.L-.01?'💧 The pit is full — it dries out in 1-2 days unless a path joins it to a river or the sea':'💧 Not enough water to fill the pit — it soaks away within 1-2 days');save()}
 /* channel spade: hold 5 and sweep your aim along the ground — every column it crosses is dug open 1 layer deep (a water path) */
-function dgNoReason(d,n){return d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null}
+function dgNoReason(d,n){return d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))||d.crops.some(s=>s.n.dot(n)>Math.cos(1.6/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null}
 function spadeHold(tg){
  hold.broke=true;$('pb').style.display='none';const d=tg.d;
  if(wetB(d,tg.n)){if(hold.warned!=='w'){hold.warned='w';say('Water paths are dug on dry land')}hold.sp=null;return}
@@ -616,7 +617,7 @@ PDEF.forEach(d=>{
    fragmentShader:'uniform vec3 c;uniform vec3 uC;uniform vec3 uS;uniform float uR;uniform float uA;varying vec3 vW;void main(){vec3 rd=normalize(vW-cameraPosition);vec3 oc=uC-cameraPosition;float t=dot(oc,rd);float b=length(oc-rd*t);float x=(b-uR)/uA;float i=x<0.?1.:pow(clamp(1.-x,0.,1.),2.6);vec3 n=normalize(vW-uC);float lit=.3+.7*clamp(dot(n,uS)+.35,0.,1.);gl_FragColor=vec4(c*i*lit*1.15,1.0);}'}));
   am.position.copy(d.c);am.raycast=()=>{};scene.add(am);d.atmoMesh=am}
  makeClouds(d);
- d.animals=[];d.treeList=[];d.sprouts=[];d.fish=[];d.snakes=[];planets.push(d);
+ d.animals=[];d.treeList=[];d.sprouts=[];d.crops=[];d.fish=[];d.snakes=[];planets.push(d);
  for(let i=0;i<d.trees;i++){const n=treeSpot(d,true);if(n)makeTree(d,n)}
  for(let i=0;i<d.peace;i++)makeAnimal(d,false);
 });
@@ -682,6 +683,50 @@ function sproutTick(dt){
   scene.remove(o.root);d.sprouts.splice(i,1);
   if(d.treeList.some(t=>t.n.dot(n)>Math.cos(3.5/d.Rs))||hitTest(n.clone().multiplyScalar(sr+2).add(d.c),3.4))continue; // no room any more: the plant withers
   makeTree(d,n,true,Math.random()<.5?'cone':'broad')}}
+
+/* ---------- crops: potato & mendel (pea). A plant is young until watered once, then grows up in 2-3 days. Adult: tap/hold = 3-5 items. Wild ones grow on Verdant; the ones YOU plant are saved. ---------- */
+const CROP={potato:{n:'Potato',id:0},mendel:{n:'Mendel',id:1}},CROP_IDS=['potato','mendel'],CROP_WILD=9;let cropT=3,cropInit=false;
+const podG=new T.SphereGeometry(.22,6,5),spudG=new T.SphereGeometry(.3,6,5);
+function cropMesh(type,stage,wet){
+ const g=new T.Group(),lc=wet?[0x2f8a42,0x47b04f]:[0x9a9f3f,0x8a8434],M=(geo,col,sx,sy,sz,x,y,z)=>{const m=new T.Mesh(geo,mat(col));m.scale.set(sx,sy,sz);m.position.set(x,y,z);g.add(m);return m};
+ const h=stage?(type==='potato'?1.7:2.6):.8;
+ const st=new T.Mesh(stemG,mat(wet?0x3d7a34:0x7a7a38));st.scale.set(stage?1.1:.6,h/1.3,stage?1.1:.6);g.add(st);
+ const nl=stage?9:4;
+ for(let i=0;i<nl;i++){const a=i*2.4,r=stage?.6+.25*(i%3):.35,y=.2+h*(i+1)/(nl+1);M(leafG,lc[i%2],stage?1.1:.8,.2,.5,Math.cos(a)*r,y,Math.sin(a)*r).rotation.set(0,-a,.35)}
+ if(type==='potato'){
+  if(stage){for(let i=0;i<4;i++){const a=i*1.6;M(spudG,0xb8793a,1.1,.8,.9,Math.cos(a)*.7,.12,Math.sin(a)*.7)}for(let i=0;i<3;i++)M(podG,0xffffff,.45,.45,.45,Math.cos(i*2.1)*.5,h+.1,Math.sin(i*2.1)*.5)}}
+ else{
+  if(stage){M(stemG,0x8a6a3a,.35,2.2,.35,.9,0,0);for(let i=0;i<4;i++){const a=i*1.5+.4;M(podG,0x57c43d,.8,.8,2.6,Math.cos(a)*.75,h*.45+i*.2,Math.sin(a)*.75).rotation.set(.3,-a,0)}}
+  else{M(podG,0x7fd36a,.4,.4,.4,0,h+.15,0)}}
+ return g}
+function putCrop(o){if(o.root)unreg(o);const g=cropMesh(o.type,o.stage,o.wet);g.position.copy(o.base);g.quaternion.copy(o.q);g.scale.setScalar(1.25);reg(g,o);
+ o.name=CROP[o.type].n+(o.stage?' Plant 🌿 (ready!)':o.wet?' Sapling 🌱':' Sapling 🌱 (needs water)')}
+function addCrop(d,n,type,stage,wet,rem){
+ const o={kind:'crop',type,pl:d,n,base:n.clone().multiplyScalar(surfR(d,n)-.05).add(d.c),q:new T.Quaternion().setFromUnitVectors(UP,n),stage,wet,time:.5,ready:0,hp:1,root:null};
+ if(wet&&!stage)o.ready=worldTime+(rem==null?rnd(2,3)*dayOfPl(d):rem);
+ putCrop(o);d.crops.push(o);return o}
+function waterCrop(o){o.wet=true;o.ready=worldTime+rnd(2,3)*dayOfPl(o.pl);putCrop(o)}
+const cropFree=(d,n)=>!d.treeList.some(t=>t.n.dot(n)>Math.cos(2.5/d.Rs))&&!d.sprouts.some(q=>q.n.dot(n)>Math.cos(1.6/d.Rs))&&!d.crops.some(q=>q.n.dot(n)>Math.cos(1.6/d.Rs));
+function plantCrop(k){
+ if(P.mode!=='ground'||!P.pl||P.sw||P.pl.ag){say('Stand on a planet to plant');return}
+ const tg=terrainRay(DIG_REACH);if(!tg){say('Aim at the ground to plant it');return}
+ if(wet(tg.d,tg.n)){say("Plants can't grow in water or pits");return}
+ if(!cropFree(tg.d,tg.n)){say('Too close to another plant');return}
+ addCrop(tg.d,tg.n.clone(),k,0,false);inv[k]--;say('🌱 Planted! Pour a water bucket on it (tap with the full bucket)');save()}
+function harvestCrop(o){
+ const d=o.pl,i=d.crops.indexOf(o);if(i>=0)d.crops.splice(i,1);const k=o.type,nm=CROP[k].n;
+ if(o.stage){const c=3+Math.floor(Math.random()*3);inv[k]+=c;say('+'+c+' '+nm+(c>1?'s':'')+' 🌿')}else{inv[k]++;say('+1 '+nm+' (dug back up)')}
+ save()}
+function cropSpot(d){for(let i=0;i<8;i++){const n=sproutSpot(d);if(n&&cropFree(d,n))return n}return null}
+function cropTick(dt){
+ for(const d of planets)for(const o of d.crops){if(o.stage||!o.wet||worldTime<o.ready)continue;if(o.base.distanceTo(cam.position)<3)continue;o.stage=1;putCrop(o);if(!o.wild)save()}
+ const d=planets.find(p=>p.name==='Verdant');if(!d)return;
+ if(!cropInit){cropInit=true;for(let i=0;i<CROP_WILD&&d.crops.length<CROP_WILD+60;i++){const n=cropSpot(d);if(n){const o=addCrop(d,n,CROP_IDS[i%2],0,true,0);o.wild=true;o.stage=1;putCrop(o)}}}
+ cropT-=dt;if(cropT<=0){cropT=rnd(25,50);if(d.crops.filter(o=>o.wild).length<CROP_WILD){const n=cropSpot(d);if(n){const o=addCrop(d,n,CROP_IDS[(Math.random()*2)|0],0,true,rnd(.5,1)*dayOfPl(d));o.wild=true}}}}
+function cropSnap(){const out=[];planets.forEach((d,pi)=>{if(!d.crops)return;_cq.copy(d.rq).conjugate();for(const o of d.crops){if(o.wild)continue;const v=o.n.clone().applyQuaternion(_cq);out.push([pi,o.type==='potato'?0:1,o.stage,o.wet?1:0,Math.max(0,Math.round(o.ready-worldTime)),+v.x.toFixed(5),+v.y.toFixed(5),+v.z.toFixed(5)])}});return out}
+const _cq=new T.Quaternion();
+function loadCrops(a){for(const r of a){if(!Array.isArray(r)||r.length!==8||!r.every(Number.isFinite))continue;const d=planets[r[0]];if(!d)continue;const n=new T.Vector3(r[5],r[6],r[7]).normalize().applyQuaternion(d.rq);
+  const o=addCrop(d,n,CROP_IDS[r[1]]||'potato',r[2]?1:0,!!r[3],r[4]);if(r[2]){o.stage=1;putCrop(o)}}}
 const base_near=o=>o.base.distanceTo(cam.position)<6;
 /* ---------- Verdant ocean fish: 3D fish built from your cut-out sheet (img/skin_fish.png), swimming and sometimes leaping out of the water ---------- */
 const FSW=768,FSH=512,FR={head:[21,35,304,212],face:[97,35,250,212],body:[325,44,756,212],lfin:[22,262,157,361],rfin:[207,262,338,361],dorsal:[372,266,535,364],tail:[576,249,756,388],belly:[18,402,232,498],top:[244,404,458,498],bottom:[481,410,690,499]};
@@ -892,7 +937,7 @@ function snakeTick(dt){
   for(let k=0;k<3&&d.snakes.length<SN_N;k++){const n=snakeSpot(d);if(n)spawnSnake(d,n,Math.random()<.4)}}
  for(const s of d.snakes)if(s.hw.distanceToSquared(cam.position)<260*260)snakeStep(d,s,dt)}
 function treeTick(dt){
- sproutTick(dt);fishTick(dt);snakeTick(dt);doorTick(dt);
+ sproutTick(dt);cropTick(dt);fishTick(dt);snakeTick(dt);doorTick(dt);
  for(let i=regrow.length-1;i>=0;i--){const r=regrow[i];r.t-=dt;if(r.t>0)continue;
   const n=treeSpot(r.d);if(n){makeTree(r.d,n,true);regrow.splice(i,1)}else r.t=6}
  for(let i=growing.length-1;i>=0;i--){const o=growing[i];o.gt+=dt/5;const k=Math.min(1,o.gt),e=1-Math.pow(1-k,3);o.root.scale.setScalar(Math.max(.02,o.s*e));treeCS(o,Math.max(.02,o.s*e));if(k>=1)growing.splice(i,1)}}
@@ -1120,11 +1165,11 @@ function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest 
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=stk;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0,bucket:0,wbucket:0,spade:0};
+const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0,bucket:0,wbucket:0,spade:0,potato:0,mendel:0};
 const pets=[]; // animals tied with a rope (see petTick)
 const ITEMS={
  door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},tube:{n:'Sleeping Tube',img:'tube',d:'Place it (2 blocks high), then tap it to sleep. Sleep at night and you wake at day'},leather:{n:'Leather',img:'leather',d:'Dropped by night predators and chasm snakes'},rope:{n:'Rope',img:'rope',d:'Twisted from 2 leather. Hold it, stand near a peaceful animal or fish and press 5 or Shift to tame it'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
- food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},
+ food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},potato:{n:'Potato',img:'potato',use:{hg:20},d:'Tap the ground to plant it, hold to eat'},mendel:{n:'Mendel Pea',img:'mendel',use:{hg:12},d:'Tap the ground to plant it, hold to eat'},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
  anti:{n:'Gravity Generator',img:ICON.anti,d:'Select it in the hotbar, aim at a block, tap 5'},
@@ -1132,7 +1177,7 @@ const ITEMS={
  bucket:{n:'Bucket',img:ICON.bucket,d:'Aim at a river, the sea or a wet pit and tap 5 to fill it'},wbucket:{n:'Water Bucket',img:ICON.wbucket,d:'Aim at a pit and tap 5 to pour the water in'},spade:{n:'Channel Spade',img:ICON.spade,d:'Hold 5 and sweep your aim along the ground to draw a water path'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','fish','plank','wood','stone','hull','door','tube','leather','rope','anti','apple','pickaxe','axe','spear','bucket','wbucket','spade','cooked','cfish','stew','bandage','medkit'];
+const ORDER=['food','fish','plank','wood','stone','hull','door','tube','leather','rope','anti','apple','potato','mendel','pickaxe','axe','spear','bucket','wbucket','spade','cooked','cfish','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -1207,6 +1252,7 @@ function spinPlanet(d,ang,full,force){
  d.sp=(d.sp||0)+ang;const far=force||Math.abs(d.sp-(d.fsp||0))>=1.5/d.R;if(far)d.fsp=d.sp;
  const cp=cam.position,owe=o=>{if(o.sa===undefined)o.sa=d.sp-ang;if(!far&&!(o.base.distanceToSquared(cp)<TREE_NEAR2))return null;const a=d.sp-o.sa;if(!a)return null;o.sa=d.sp;return _sq2.setFromAxisAngle(d.axis,a)};
  for(const o of d.treeList){const k=owe(o);if(!k)continue;o.n.applyQuaternion(k);o.base.sub(c).applyQuaternion(k).add(c);o.root.position.copy(o.base);o.root.quaternion.premultiply(k);treeCS(o,o.root.scale.x)}
+ for(const o of d.crops){const k=owe(o);if(!k)continue;o.n.applyQuaternion(k);o.base.sub(c).applyQuaternion(k).add(c);o.q.premultiply(k);o.root.position.copy(o.base);o.root.quaternion.copy(o.q)}
  for(const f of d.fish){f.n.applyQuaternion(q);f.t.applyQuaternion(q)}
  for(const s of d.snakes||[]){for(const v of s.segs)v.applyQuaternion(q);s.t.applyQuaternion(q);s.hw.sub(d.c).applyQuaternion(q).add(d.c)}
  for(const m of splashes)if(m.on&&m.d===d)m.n.applyQuaternion(q);
@@ -1296,7 +1342,7 @@ function save(){
   if(_dc.v!==digVer)_dc={v:digVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.dig.forEach((e,k)=>a.push(k,e.L,Math.round(e.t)));return a}))}; // holes per planet: [grid size, column, layers, time dug, ...]
   if(_wc.v!==wVer)_wc={v:wVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.wset.forEach(k=>{const e=d.dig.get(k);if(e)a.push(k,Math.round(e.w*100),Math.round(e.we||0))});return a}))}; // water in pits per planet: [grid size, column, water x100, time it dries, ...]
   const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
-  const rest=JSON.stringify({inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
+  const rest=JSON.stringify({crops:cropSnap(),inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
   const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+',"dig":'+_dc.s+',"dw":'+_wc.s+','+rest.slice(1);
   if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
@@ -1321,6 +1367,7 @@ function loadSave(){
     if(type==='tube'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addTube(g,i,j,k);if(ag){markAG(lo);markAG(lo.tube.hi)}}else refund.tube=(refund.tube||0)+1;return}
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
   }else(d.blocks||[]).forEach(a=>{if(Array.isArray(a)&&BT[a[0]])refund[a[0]]=(refund[a[0]]||0)+1}); // old saves: planets moved and grew, so their blocks come back to the inventory
+  if(Array.isArray(d.crops))loadCrops(d.crops);
   if(Array.isArray(d.pets))savedPets=d.pets;
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
   if(d.inv&&d.inv.plank===undefined)inv.plank=0; // old saves: their 'wood' count stays as Wood Blocks
@@ -1351,7 +1398,7 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0,bucket:0,wbucket:0,spade:0});layout.fill(null);save()}
+function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0,bucket:0,wbucket:0,spade:0,potato:0,mendel:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
@@ -1534,7 +1581,9 @@ function hit(o){const now=performance.now();if(now<hitCD||!o.cs)return;
 function tap(){ // use whatever is in the selected hotbar slot; aimed at a door within reach = open / close it
  if(aimObj&&aimObj.door&&aimObj.pos.distanceTo(cam.position)<7){toggleDoor(aimObj.door);return}
  if(aimObj&&aimObj.tube&&aimObj.pos.distanceTo(cam.position)<7){useTube();return}
+ if(aimObj&&aimObj.kind==='crop'&&aimObj.stage===1&&aimObj.base.distanceTo(cam.position)<7){const c=aimObj;aimObj=null;finish(c);return}
  const k=layout[HB+sel];if(!k)return;
+ if((k==='potato'||k==='mendel')&&inv[k]>0){plantCrop(k);return}
  if(k==='anti'){useAnti();return}
  if(k==='bucket'||k==='wbucket'){useBucket(k);return}
  if(k==='spade'){say('Hold 5 / left-click and sweep along the ground to draw a water path');return}
@@ -1545,6 +1594,7 @@ function finish(o){
  unreg(o);const D={};
  if(o.kind==='block'){if(o.door){const dr=o.door,oth=dr.lo===o?dr.hi:dr.lo;unreg(oth);blocks.delete(oth.key);const di=doors.indexOf(dr);if(di>=0)doors.splice(di,1)}if(o.tube){const tb=o.tube,oth=tb.lo===o?tb.hi:tb.lo;unreg(oth);blocks.delete(oth.key)}blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
+ else if(o.kind==='crop'){harvestCrop(o)}
  else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
  else if(o.kind==='snake'){despawnSnake(o);inv.food+=3;inv.leather++;say('+3 meat, +1 leather')}
  else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);if(o.pet)dropPet(o,true);o.owned=false;inv.fish++;say('+1 raw fish 🐟')}
