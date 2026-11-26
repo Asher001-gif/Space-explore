@@ -31,6 +31,9 @@ Chopped trees grow back after 40-80 seconds on a free spot of the same planet (n
 Mining asteroids gives small **Rocks** (inventory picture `src/img/stone.png`). A Rock is not a block: select it and tap 5 / Space on the ground, a block or another rock to place a small loose rock with its own odd shape (random every time, saved with the world, solid, turns with the planet). Hold to pick it back up (+1 rock).
 To build with cubes, open the inventory (0 / E) > Materials > **Cube Rock**: **1 Rock makes 1 Cube Rock** (picture `src/img/block_stone.png`). A Cube Rock places like any other block on the build grid; breaking one gives you the Cube Rock back. Old saves keep their stone blocks as Cube Rocks. Rocks are still used for tools, Hull and Medkits.
 
+## Placeable planks
+Select a **Plank** and tap 5 / Space on the ground, a block, a rock or another plank to lay it down as a wooden log (a cylinder). It **always lies horizontal** (level with the local up, across the way you face), is saved with the world, turns with the planet, and hold breaks it (+1 plank). Rocks and planks are both solid (a row of collision spheres along the log): you, animals and blocks cannot pass through them, and nothing can be placed inside them.
+
 ## Inventory & crafting
 0 / E opens a large inventory: 54 backpack slots (6 rows, scrollable) + the 9-slot hotbar row. Drag items between any slots (mouse or touch; dropping on a filled slot swaps), click-then-click also works, Shift+click sends an item to the other section, double-click / right-click food or medicine to use it. Empty hotbar slots show nothing; stacks only show a number when you have more than one. New items go into the first free hotbar slot. Crafting tabs (Tools, Materials, Food, Comfort) are on the right.
 
