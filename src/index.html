@@ -318,12 +318,12 @@ const GTEX=(()=>{const S=256,c=document.createElement('canvas');c.width=c.height
   const i=(y*S+x)*4,gr=Math.random(); // R = clumpy noise, G = per-pixel grain (grass blades / grit)
   im.data[i]=v*255;im.data[i+1]=gr*255;im.data[i+2]=0;im.data[i+3]=255}
  g.putImageData(im,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;t.generateMipmaps=true;t.minFilter=T.LinearMipmapLinearFilter;t.magFilter=T.LinearFilter;return t})();
-/* ---------- digging: layered ground you can mine (dirt -> loose rocks -> hard rock -> bedrock) ----------
+/* ---------- digging: layered ground you can mine (dirt -> loose rocks -> hard rock) ----------
    Each planet's surface is split into ~2-unit columns (an equal-angle cube-sphere grid kept in the planet's own frame, like the water map).
    A column remembers how many 2-unit layers were dug out of it: the terrain shader cuts a hole there and a rough rock-lined pit is built in the hole. */
-const DIG_H=2,DIRT_L=2,ROCK_L=3,DIG_MAX=14,DIG_DAYS=3,DIG_REACH=7,DEEP0=6,DCH=16; // layer height; layers of dirt / loose rock (hard rock below, bedrock at DIG_MAX); game days until an unseen hole fills again; reach; depth where the air gets thin; chunk size (columns)
-const LAYERS=[{n:'Dirt',t:.55,pick:1.7,axe:1,hand:.9},{n:'Loose rocks',t:2.4,pick:1,axe:.4,hand:.2,dmg:2},{n:'Hard rock',t:3.4,pick:1,axe:.14,hand:.06,dmg:3},{n:'Bedrock'}];
-const layerOf=k=>k<DIRT_L?0:k<DIRT_L+ROCK_L?1:k<DIG_MAX?2:3;
+const DIG_H=2,DIRT_L=2,ROCK_L=3,DIG_MAX=250,DIG_DAYS=3,DIG_REACH=7,DEEP0=6,DCH=16; // layer height; layers of dirt / loose rock (hard rock all the way down; the breath bar is the only depth limit; DIG_MAX just fits the 8-bit hole mask); game days until an unseen hole fills again; reach; depth where the air gets thin; chunk size (columns)
+const LAYERS=[{n:'Dirt',t:.55,pick:1.7,axe:1,hand:.9},{n:'Loose rocks',t:2.4,pick:1,axe:.4,hand:.2,dmg:2},{n:'Hard rock',t:3.4,pick:1,axe:.14,hand:.06,dmg:3}];
+const layerOf=k=>k<DIRT_L?0:k<DIRT_L+ROCK_L?1:2;
 let digVer=0;
 const dgQ=new T.Quaternion(),dgV=new T.Vector3(),dgA=new T.Vector3(),dgB=new T.Vector3(),dgC=new T.Vector3(),dgTp=new T.Vector3(),dgTn=new T.Vector3(),dgFn=new T.Vector3();
 function digInit(d){const N=Math.round(Math.PI/2*d.R/DIG_H);d.dN=N;d.dig=new Map();d.dData=new Uint8Array(6*N*N);d.dChunks=new Map();d.dMeshes=new Map();d.dDirty=new Set();d.dTexT=0;d.dTexW=0;
@@ -389,7 +389,6 @@ function terrainRay(maxD){
   return{d,n,key:dgKeyOf(d,n),L:digL(d,n),dist:hi,p:cam.position.clone().addScaledVector(fwd,hi)}}
  return null}
 function dgLabel(tg){if(wetB(tg.d,tg.n))return '';const L=LAYERS[layerOf(tg.L)];
- if(!L.t)return 'Bedrock (unbreakable)';
  return L.n+(L.dmg&&!inv.pickaxe&&!inv.axe&&!inv.spear?' ⚠ hurts bare-handed':'')}
 /* dust and rock bits */
 const bitG=new T.BoxGeometry(.28,.28,.28),bitM={},bits=[];
@@ -399,11 +398,10 @@ function puff(d,p,n,lay,cnt){const mk=d.name+lay,m=bitM[mk]||(bitM[mk]=new T.Mes
 function stepBits(dt){for(let i=bits.length-1;i>=0;i--){const g=bits[i];g.t+=dt;if(g.t>=g.life){scene.remove(g.b);bits.splice(i,1);continue}
   g.v.addScaledVector(g.n,-24*dt);g.b.position.addScaledVector(g.v,dt);g.b.rotation.x+=dt*6;g.b.rotation.y+=dt*4;const s=1-g.t/g.life*.5;g.b.scale.setScalar(s)}}
 /* mining */
-function digStep(tg){const d=tg.d,e=d.dig.get(tg.key)||{L:0,t:0},lay=layerOf(e.L);if(lay>2)return;
- if(lay===2){inv.stone++;say('+1 stone')} // hard rock breaks into ordinary stone (same item as from asteroids)
+function digStep(tg){const d=tg.d,e=d.dig.get(tg.key)||{L:0,t:0},lay=layerOf(e.L); if(lay===2){inv.stone++;say('+1 stone')} // hard rock breaks into ordinary stone (same item as from asteroids)
  puff(d,tg.p,tg.n,lay,lay===0?9:12);setDig(d,tg.key,e.L+1,worldTime);save()}
 function digHold(tg,dt){hold.broke=true;const d=tg.d,L=LAYERS[layerOf(tg.L)],n=tg.n;
- const bad=wetB(d,n)?"You can't dig in water or in the chasm":!L.t?'Bedrock — nothing can break this':null;
+ const bad=wetB(d,n)?"You can't dig in water or in the chasm":tg.L>=DIG_MAX?'Too deep':null;
  if(bad){$('pb').style.display='none';if(hold.warned!==bad){hold.warned=bad;say(bad)}return}
  const no=d.treeList.some(t=>t.n.dot(n)>Math.cos(4.2/d.Rs))||d.sprouts.some(s=>s.n.dot(n)>Math.cos(2.2/d.Rs))?'The roots hold this ground together':d.animals.some(a=>a.n.dot(n)>Math.cos(2.8/d.Rs))?'Something is standing there':null;
  if(no){$('pb').style.display='none';if(hold.warned!==no){hold.warned=no;say(no)}return}
