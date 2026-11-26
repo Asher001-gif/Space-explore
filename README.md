@@ -27,6 +27,10 @@ On Verdant only, grass tufts sprout here and there. After a while a tuft grows i
 ## Trees
 Chopped trees grow back after 40-80 seconds on a free spot of the same planet (never on top of blocks, animals, other trees or right next to you).
 
+## Rocks and Cube Rocks
+Mining asteroids gives small **Rocks** (inventory picture `src/img/stone.png`). A Rock is not a block: select it and tap 5 / Space on the ground, a block or another rock to place a small loose rock with its own odd shape (random every time, saved with the world, solid, turns with the planet). Hold to pick it back up (+1 rock).
+To build with cubes, open the inventory (0 / E) > Materials > **Cube Rock**: **1 Rock makes 1 Cube Rock** (picture `src/img/block_stone.png`). A Cube Rock places like any other block on the build grid; breaking one gives you the Cube Rock back. Old saves keep their stone blocks as Cube Rocks. Rocks are still used for tools, Hull and Medkits.
+
 ## Inventory & crafting
 0 / E opens a large inventory: 54 backpack slots (6 rows, scrollable) + the 9-slot hotbar row. Drag items between any slots (mouse or touch; dropping on a filled slot swaps), click-then-click also works, Shift+click sends an item to the other section, double-click / right-click food or medicine to use it. Empty hotbar slots show nothing; stacks only show a number when you have more than one. New items go into the first free hotbar slot. Crafting tabs (Tools, Materials, Food, Comfort) are on the right.
 

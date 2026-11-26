@@ -734,9 +734,9 @@ for(let i=0;i<200;i++){
 }
 
 /* ---------- blocks / inventory ---------- */
-const BT={wood:{c:0xb5793f,n:'Wood Block'},stone:{c:0x8a8f99,n:'Stone Block'},hull:{c:0x4aa3df,n:'Hull Block'},door:{c:0x9a6a3a,n:'Door'},tube:{c:0x2a7fff,n:'Sleeping Tube'}};
+const BT={wood:{c:0xb5793f,n:'Wood Block'},cube:{c:0x8a8f99,n:'Cube Rock',tex:'stone'},hull:{c:0x4aa3df,n:'Hull Block'},door:{c:0x9a6a3a,n:'Door'},tube:{c:0x2a7fff,n:'Sleeping Tube'}};
 const bgeo=new T.BoxGeometry(2,2,2),egeo=new T.EdgesGeometry(bgeo),emat=new T.LineBasicMaterial({color:0x000000,transparent:true,opacity:.5});
-const TL=new T.TextureLoader();for(const k in BT){BT[k].m=new T.MeshStandardMaterial({map:TL.load('img/tex_'+k+'.png'),roughness:1})}
+const TL=new T.TextureLoader();for(const k in BT){BT[k].m=new T.MeshStandardMaterial({map:TL.load('img/tex_'+(BT[k].tex||k)+'.png'),roughness:1})}
 BT.door.m.map.magFilter=BT.door.m.map.minFilter=T.NearestFilter;BT.door.m.map.generateMipmaps=false;
 BT.tube.m.map.magFilter=BT.tube.m.map.minFilter=T.NearestFilter;BT.tube.m.map.generateMipmaps=false;
 /* ---------- icons drawn by code (no image files) ---------- */
@@ -759,7 +759,7 @@ function mkIcon(kind){
   const face=(pts,col,dir,detail)=>{g.save();path(pts);g.clip();g.fillStyle=col;g.fillRect(0,0,64,64);detail(dir);g.restore();path(pts);g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=1.6;g.stroke()};
   const detail=dir=>{
    if(kind==='wood'){g.strokeStyle='rgba(60,30,8,.45)';g.lineWidth=1.3;for(let y=-30;y<90;y+=6+lr()*3){g.beginPath();g.moveTo(-10,y+dir[1]*-.4);g.lineTo(80,y+dir[1]*1.9);g.stroke()}}
-   else if(kind==='stone'){for(let i=0;i<46;i++){g.fillStyle=lr()<.5?'rgba(255,255,255,.22)':'rgba(0,0,0,.28)';g.fillRect(lr()*64,lr()*64,1+lr()*3,1+lr()*3)}}
+   else if(kind==='cube'){for(let i=0;i<46;i++){g.fillStyle=lr()<.5?'rgba(255,255,255,.22)':'rgba(0,0,0,.28)';g.fillRect(lr()*64,lr()*64,1+lr()*3,1+lr()*3)}}
    else{g.strokeStyle='rgba(220,245,255,.5)';g.lineWidth=1.4;for(let y=-30;y<90;y+=15){g.beginPath();g.moveTo(-10,y);g.lineTo(80,y+dir[1]*3.4);g.stroke()}g.fillStyle='rgba(235,250,255,.85)';[[22,20],[42,20],[32,48],[18,38],[46,38]].forEach(q=>{g.beginPath();g.arc(q[0],q[1],1.4,0,7);g.fill()})}};
   face(left,shade(base,.8),[26,13],detail);face(right,shade(base,.58),[26,-13],detail);face(top,shade(base,1.22),[26,13],detail);
  }
@@ -780,8 +780,47 @@ function mkItem(kind){
  else if(kind==='medkit'){P(2,5,'#f4f4f4',12,9);P(2,5,'#b9bfcc',12,1);P(2,13,'#b9bfcc',12,1);P(2,5,'#b9bfcc',1,9);P(13,5,'#b9bfcc',1,9);P(5,3,'#8e98ad',6,2);P(7,6,'#d63a3a',2,6);P(5,8,'#d63a3a',6,2)}
  return cv.toDataURL();
 }
-const ICON={};['wood','stone','hull'].forEach(k=>ICON[k]=mkIcon(k));ICON.anti=mkIcon('anti');
+const ICON={};['wood','cube','hull'].forEach(k=>ICON[k]=mkIcon(k));ICON.anti=mkIcon('anti');
 ['cooked','stew','bandage','medkit'].forEach(k=>ICON[k]=mkItem(k));ICON.pickaxe='pickaxe';ICON.axe='axe';ICON.spear='spear';
+
+/* ---------- loose rocks: small rocks with odd shapes. A Rock item is placed as one of these; turn it into a Cube Rock (inventory > Materials) to build with blocks ---------- */
+const rocks=[],ROCKC=[0x8d9097,0x7d7f86,0x9a9ca3,0x74767d,0x85827c];
+function rockRnd(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function rockShape(seed){ // same seed = same rock, so saved rocks come back looking the same
+ const R=rockRnd(seed),sx=.42+R()*.5,sy=.3+R()*.4,sz=.4+R()*.5,ph=R()*100,rough=.2+R()*.35,sub=R()<.5?0:1;
+ let g=new T.IcosahedronGeometry(1,sub);if(g.index)g=g.toNonIndexed();const ps=g.attributes.position;
+ for(let j=0;j<ps.count;j++){const x=ps.getX(j),y=ps.getY(j),z=ps.getZ(j),f=.8+noise(x+ph,y+ph*.7,z+ph*1.3)*rough;ps.setXYZ(j,x*f*sx,y*f*sy,z*f*sz)}
+ g.computeVertexNormals();g.computeBoundingSphere();
+ return{g,h:sy*.9,rad:Math.max(.3,Math.max(sx,sz)*.72),col:ROCKC[Math.floor(R()*ROCKC.length)],yaw:R()*6.283}}
+function addRock(seed,pos,quat,sc){
+ const sh=rockShape(seed),m=new T.Mesh(sh.g,mat(sh.col)),k=sc||1;
+ m.position.copy(pos);m.quaternion.copy(quat);m.scale.setScalar(k);
+ const ast={pos:m.position,rad:sh.rad*k}; // the rock's collision sphere shares the asteroid list, so you, animals, blocks and trees all treat it as solid
+ const o={kind:'rock',name:'Rock 🪨',time:.45,pos:m.position,seed,k,ast};reg(m,o);rocks.push(o);asteroids.push(ast);return o}
+function rockBusy(p,r){
+ for(const a of asteroids)if(a.pos.distanceTo(p)<a.rad+r)return true;
+ for(const o of blocks.values())if(!o.open&&sbDist2(p,o.pos)<r*r)return true;
+ for(const q of playerSph())if(q.p.distanceTo(p)<q.r+r+.04)return true;
+ for(const d of planets){
+  for(const t of d.treeList){if(t.base.distanceToSquared(p)>(9*t.s+3)**2)continue;for(const c of t.cs)if(c.p.distanceTo(p)<c.r+r)return true}
+  for(const a of d.animals)for(const c of a.cs)if(c.p.distanceTo(p)<c.r+r)return true}
+ return false}
+const _rkr=new T.Quaternion(),_rkq=new T.Quaternion(),_rkY=new T.Vector3(0,1,0),_rkn=new T.Matrix3();
+function placeRock(){
+ if(inv.stone<=0)return;
+ ray.far=16;ray.set(cam.position,fwd);
+ const th=ray.intersectObjects(targets.filter(m=>{const k=m.userData.o.kind;return k==='block'||k==='rock'||k==='asteroid'}),false)[0];
+ let bp=null,bn=null,bd=1e9;
+ if(th){bd=th.distance;bp=th.point.clone();bn=th.face.normal.clone().applyNormalMatrix(_rkn.getNormalMatrix(th.object.matrixWorld)).normalize()}
+ for(const d of planets){ray.far=16;ray.set(cam.position,fwd);const hh=ray.intersectObject(d.mesh,false)[0];if(hh&&hh.distance<bd){bd=hh.distance;bp=hh.point.clone();bn=hh.point.clone().sub(d.c).normalize()}}
+ if(!bp){say('Aim at the ground, a block or another rock to place a rock');return}
+ const seed=1+Math.floor(Math.random()*2147483000),sh=rockShape(seed),k=.8+Math.random()*.35;
+ _rkr.setFromUnitVectors(_rkY,bn);_rkq.setFromAxisAngle(_rkY,sh.yaw);_rkr.multiply(_rkq);
+ const pos=bp.addScaledVector(bn,sh.h*k*.75); // sunk a little into the surface so it sits on it
+ if(rockBusy(pos,sh.rad*k*.8)){say("Can't place there");return}
+ addRock(seed,pos,_rkr,k);inv.stone--;save();
+}
+function rockSnap(){const f=(v,n)=>+v.toFixed(n);return rocks.map(o=>{const q=o.root.quaternion;return[o.seed,f(o.pos.x,3),f(o.pos.y,3),f(o.pos.z,3),f(q.x,5),f(q.y,5),f(q.z,5),f(q.w,5),f(o.k,3)]})}
 const blocks=new Map();
 let blocksVer=0; // bumps whenever a block is added / removed / turned into a Gravity Generator block / a door opens or closes
 for(const m of['set','delete','clear']){const f=blocks[m];blocks[m]=function(...a){blocksVer++;return f.apply(this,a)}}
@@ -868,10 +907,10 @@ function agNearest(p,list,out,up,stk){stk=stk===undefined?STICK:stk; // closest 
   let sc=Math.sqrt(d2);const d=sc;if(up&&d>1e-4&&(dx*up.x+dy*up.y+dz*up.z)/d>.85)sc-=stk;
   if(sc<bs){bs=sc;bd=d;bx=x;by=y;bz=z}}
  out.set(bx,by,bz);return bd}
-const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
+const inv={tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,cube:0,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0};
 const pets=[]; // animals tied with a rope (see petTick)
 const ITEMS={
- door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},tube:{n:'Sleeping Tube',img:'tube',d:'Place it (2 blocks high), then tap it to sleep. Sleep at night and you wake at day'},leather:{n:'Leather',img:'leather',d:'Dropped by night predators and chasm snakes'},rope:{n:'Rope',img:'rope',d:'Twisted from 2 leather. Hold it, stand near a peaceful animal or fish and press 5 or Shift to tame it'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Stone',img:'stone'},hull:{n:'Hull',img:'hull'},
+ door:{n:'Door',img:'door',d:'Place it in a 1x2 doorway - tap it to open or close'},tube:{n:'Sleeping Tube',img:'tube',d:'Place it (2 blocks high), then tap it to sleep. Sleep at night and you wake at day'},leather:{n:'Leather',img:'leather',d:'Dropped by night predators and chasm snakes'},rope:{n:'Rope',img:'rope',d:'Twisted from 2 leather. Hold it, stand near a peaceful animal or fish and press 5 or Shift to tame it'},plank:{n:'Plank',img:'wood',d:'Chopped from trees - craft it into Wood Blocks'},wood:{n:'Wood Block',img:'block_wood'},stone:{n:'Rock',img:'stone',d:'A small rock - tap to place it as it is. Make it a Cube Rock in Materials to build with blocks'},cube:{n:'Cube Rock',img:'block_stone',d:'A rock cut into a cube - place it like any block'},hull:{n:'Hull',img:'hull'},
  food:{n:'Meat',img:'meat',use:{hg:25}},fish:{n:'Raw Fish',img:'fish_raw',use:{hg:20}},cfish:{n:'Cooked Fish',img:'fish_cooked',use:{hg:45}},apple:{n:'Apple',img:'apple',use:{hg:15}},
  cooked:{n:'Cooked Meat',img:ICON.cooked,use:{hg:50}},stew:{n:'Hearty Stew',img:ICON.stew,use:{hg:70}},
  bandage:{n:'Bandage',img:ICON.bandage,use:{hp:35}},medkit:{n:'Medkit',img:ICON.medkit,use:{hp:100}},
@@ -879,7 +918,7 @@ const ITEMS={
  pickaxe:{n:'Pickaxe',img:ICON.pickaxe,d:'Mines asteroids & blocks 3x faster'},axe:{n:'Axe',img:ICON.axe,d:'Chops trees 3x faster'},spear:{n:'Spear',img:ICON.spear,d:'Hunts animals 2.5x faster'}};
 const BP=54,NS=BP+9,layout=new Array(NS).fill(null); // 0-53 backpack (6 rows, opened with 0/E) · 54-62 hotbar (quick inventory)
 const HB=BP,HLAB=['1','2','3','4','6','7','9','',''];
-const ORDER=['food','fish','plank','wood','stone','hull','door','tube','leather','rope','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
+const ORDER=['food','fish','plank','wood','stone','cube','hull','door','tube','leather','rope','anti','apple','pickaxe','axe','spear','cooked','cfish','stew','bandage','medkit'];
 let sel=0;
 const hot=$('hot'),hn=$('hname'),hslots=[];let hLS=-1,hLK=null,hTm=0;
 for(let i=0;i<9;i++){const d=document.createElement('div');d.className='slot';d.innerHTML='<b>'+HLAB[i]+'</b><img alt=""><i></i>';hot.appendChild(d);hslots.push({el:d,img:d.querySelector('img'),n:d.querySelector('i'),k:undefined,c:-1})}
@@ -964,6 +1003,8 @@ function spinPlanet(d,ang,full,force){
   g.origin.sub(c).applyQuaternion(q).add(c);g.q.premultiply(q).normalize();g.iq.copy(g.q).conjugate();g.up.set(0,1,0).applyQuaternion(g.q)}
  for(const o of blocks.values()){if(o.pos.distanceTo(c)>=d.RA)continue;
   o.pos.sub(c).applyQuaternion(q).add(c);o.root.position.copy(o.pos);o.root.quaternion.copy(o.s.q)}
+ for(const o of rocks){if(o.pos.distanceTo(c)>=d.RA)continue;
+  o.pos.sub(c).applyQuaternion(q).add(c);o.root.quaternion.premultiply(q)} // (o.pos is the mesh position and the collision sphere's centre)
  if(ATM.d===d&&P.mode==='ground'){ // standing on this planet (or on blocks built on it): you turn with it. In free flight, even inside the atmosphere, nothing drags you - you only see the planet turn below you
   cam.position.sub(c).applyQuaternion(q).add(c);P.hd.applyQuaternion(q);P.up.applyQuaternion(q);P.vu.applyQuaternion(q)}
 }
@@ -1041,7 +1082,7 @@ function save(){
   if(_bc.v!==blocksVer){const b=[],ids=new Set();blocks.forEach(o=>{if(o.top)return;ids.add(o.s.id);b.push([o.type,o.s.id,o.c[0],o.c[1],o.c[2],o.ag?1:0].concat(o.door?[o.door.open?1:0,o.door.ax,o.door.sw]:[]))}); // a door is saved once (its lower half) with open / axis / swing
    _bc={v:blocksVer,s:JSON.stringify(b),ids:[...ids]}}
   const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
-  const rest=JSON.stringify({inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
+  const rest=JSON.stringify({rocks:rockSnap(),inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
   const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+','+rest.slice(1);
   if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
@@ -1053,14 +1094,18 @@ function loadSave(){
   const refund={};
   if(d.lv>=3){
    (d.structs||[]).forEach(a=>{if(Array.isArray(a)&&a.length===8&&a.every(Number.isFinite)&&a[0]>0)regStruct(mkStruct(new T.Vector3(a[1],a[2],a[3]),new T.Quaternion(a[4],a[5],a[6],a[7]),a[0]))});
-   (d.blocks||[]).forEach(([type,sid,i,j,k,ag,op,dax,dsw])=>{
+   (d.blocks||[]).forEach(([t0,sid,i,j,k,ag,op,dax,dsw])=>{
+    const type=t0==='stone'?'cube':t0; // old saves: the Stone Block is now the Cube Rock
     const g=structs.get(sid);if(!BT[type]||!g||![i,j,k].every(Number.isInteger)||blocks.has(keyOf(g,i,j,k)))return;
     const pos=cellPos(g,i,j,k);
     if(planets.some(p=>{const v=pos.clone().sub(p.c);return v.length()<p.R-.9})){refund[type]=(refund[type]||0)+1;return}
     if(type==='door'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addDoor(g,i,j,k,dax?1:0,dsw===-1?-1:1,!!op);if(ag){markAG(lo);markAG(lo.door.hi)}}else refund.door=(refund.door||0)+1;return}
     if(type==='tube'){if(!blocks.has(keyOf(g,i,j+1,k))){const lo=addTube(g,i,j,k);if(ag){markAG(lo);markAG(lo.tube.hi)}}else refund.tube=(refund.tube||0)+1;return}
     const o=addBlock(type,g,i,j,k);if(ag)markAG(o)});
-  }else(d.blocks||[]).forEach(a=>{if(Array.isArray(a)&&BT[a[0]])refund[a[0]]=(refund[a[0]]||0)+1}); // old saves: planets moved and grew, so their blocks come back to the inventory
+  }else(d.blocks||[]).forEach(a=>{const t=a&&a[0]==='stone'?'cube':a&&a[0];if(Array.isArray(a)&&BT[t])refund[t]=(refund[t]||0)+1});
+  if(Array.isArray(d.rocks))d.rocks.forEach(a=>{if(!Array.isArray(a)||a.length!==9||!a.every(Number.isFinite))return;
+   const pos=new T.Vector3(a[1],a[2],a[3]);if(planets.some(p=>pos.clone().sub(p.c).length()<p.R-.9)){refund.stone=(refund.stone||0)+1;return}
+   addRock(a[0],pos,new T.Quaternion(a[4],a[5],a[6],a[7]).normalize(),Math.max(.5,Math.min(2,a[8])))}); // old saves: planets moved and grew, so their blocks come back to the inventory
   if(Array.isArray(d.pets))savedPets=d.pets;
   if(d.inv)for(const k in inv)if(Number.isFinite(d.inv[k]))inv[k]=Math.max(0,d.inv[k]);
   if(d.inv&&d.inv.plank===undefined)inv.plank=0; // old saves: their 'wood' count stays as Wood Blocks
@@ -1089,14 +1134,14 @@ const DEATHS={
  sun:['You were killed by the radiation of the sun. ☀☠','Killed by solar radiation. You flew into the sun. Of course it was hot.','The sun says: look, don’t touch. Too late. ☢'],
  other:['You died. Embarrassing.','Oops. That was fatal.']};
 function deathMsg(){const l=DEATHS[P.why]||DEATHS.other;return l[Math.floor(Math.random()*l.length)].replace('{n}',(P.by||'predator').replace(/[^\x20-\x7E]/g,'').trim())}
-function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
+function die(){pets.slice().forEach(a=>dropPet(a,false));{const e=$('dmsg');e.textContent='☠ '+deathMsg();e.style.opacity=1;clearTimeout(die.t);die.t=setTimeout(()=>e.style.opacity=0,7000);P.why=null;P.by=null}say('Respawned in deep space');P.hp=100;P.hg=100;cam.position.copy(START);P.vel.set(0,0,0);P.mode='space';P.pl=null;P.esc=null;P.hh=0;P.hv=0;P.fall=false;P.vsm=false;P.sw=false;P.air=100;jh=null;ATM.d=null;P.yaw=-1.09;P.pitch=0;cam.up.set(0,1,0);Object.assign(inv,{tube:0,leather:0,rope:0,door:0,food:3,fish:0,cfish:0,apple:0,plank:4,wood:0,stone:4,cube:0,hull:0,anti:0,cooked:0,stew:0,bandage:0,medkit:0,pickaxe:0,axe:0,spear:0});layout.fill(null);save()}
 function setActive(v){active=v;document.body.classList.toggle('playing',v);$('ov').style.display=v?'none':'flex'}
 function closeMenu(lock){ui=false;selSlot=null;cancelDnd();document.body.classList.remove('inmenu');$('menu').style.display='none';if(lock)try{ren.domElement.requestPointerLock()}catch(e){}}
 function openMenu(v){if(!v){closeMenu(true);return}ui=true;selSlot=null;document.body.classList.add('inmenu');$('menu').style.display='flex';document.exitPointerLock&&document.exitPointerLock();refreshMenu()}
 let selSlot=null,dnd=null,lastClk={t:0,i:-1},tab='Tools';
 const RECIPES={
  Tools:[{n:'Pickaxe',give:{pickaxe:1},cost:{plank:2,stone:3},d:'Mine asteroids & blocks 3x faster',once:1},{n:'Axe',give:{axe:1},cost:{plank:2,stone:2},d:'Chop trees 3x faster',once:1},{n:'Spear',give:{spear:1},cost:{plank:3,stone:2},d:'Hunt animals 2.5x faster',once:1}],
- Materials:[{n:'Rope',give:{rope:1},cost:{leather:2},d:'2 leather make 1 rope',img:'rope'},{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Door (1 plank)',give:{door:1},cost:{plank:1},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Door (3 wood blocks)',give:{door:1},cost:{wood:3},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
+ Materials:[{n:'Rope',give:{rope:1},cost:{leather:2},d:'2 leather make 1 rope',img:'rope'},{n:'Wood Block x3',give:{wood:3},cost:{plank:1},d:'1 plank makes 3 blocks',img:'block_wood'},{n:'Door (1 plank)',give:{door:1},cost:{plank:1},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Door (3 wood blocks)',give:{door:1},cost:{wood:3},d:'1 wide x 2 high - tap to open / close',img:'door'},{n:'Cube Rock',give:{cube:1},cost:{stone:1},d:'1 rock makes 1 cube rock to build with',img:'block_stone'},{n:'Hull x2',give:{hull:2},cost:{plank:1,stone:1},d:'Strong blocks for building',img:'hull'}],
  Food:[{n:'Cooked Meat',give:{cooked:1},cost:{food:1,plank:1},d:'+50 hunger'},{n:'Cooked Fish (plank)',give:{cfish:1},cost:{fish:1,plank:1},d:'+45 hunger'},{n:'Cooked Fish (wood block)',give:{cfish:1},cost:{fish:1,wood:1},d:'+45 hunger'},{n:'Hearty Stew',give:{stew:1},cost:{food:1,apple:2},d:'+70 hunger'}],
  Comfort:[{n:'Sleeping Tube',give:{tube:1},cost:{leather:2,wood:1},d:'Tap it to sleep: night passes, you wake at day',img:'tube'},{n:'Bandage',give:{bandage:1},cost:{apple:1,plank:1},d:'+35 health'},{n:'Medkit',give:{medkit:1},cost:{bandage:2,stone:1},d:'Restores full health'}]};
 function syncGrid(){ // drop empty/duplicate stacks, put new items in the first free hotbar slot (then backpack)
@@ -1270,6 +1315,7 @@ function tap(){ // use whatever is in the selected hotbar slot; aimed at a door 
  if(aimObj&&aimObj.tube&&aimObj.pos.distanceTo(cam.position)<7){useTube();return}
  const k=layout[HB+sel];if(!k)return;
  if(k==='anti'){useAnti();return}
+ if(k==='stone'){if(inv.stone>0)placeRock();return}
  if(BT[k]){if(inv[k]>0)place(k);return} // (the door item is a BT entry too)
  const it=ITEMS[k];if(it.use)useItem(k);else say(it.d||it.n)}
 function toolMul(o){return o.kind==='asteroid'||o.kind==='block'?(inv.pickaxe>0?1:.3):o.kind==='tree'?(inv.axe>0?1:.3):o.kind==='animal'?(inv.spear>0?2.5:1):1}
@@ -1277,7 +1323,8 @@ function finish(o){
  unreg(o);const D={};
  if(o.kind==='block'){if(o.door){const dr=o.door,oth=dr.lo===o?dr.hi:dr.lo;unreg(oth);blocks.delete(oth.key);const di=doors.indexOf(dr);if(di>=0)doors.splice(di,1)}if(o.tube){const tb=o.tube,oth=tb.lo===o?tb.hi:tb.lo;unreg(oth);blocks.delete(oth.key)}blocks.delete(o.key);agDirty=true;inv[o.type]++;D.t=BT[o.type].n;save()}
  else if(o.kind==='tree'){{const l=o.pl.treeList,i=l.indexOf(o);if(i>=0)l.splice(i,1);const gi=growing.indexOf(o);if(gi>=0)growing.splice(gi,1);regrow.push({d:o.pl,t:rnd(REGROW[0],REGROW[1])})}const pk=o.type==='broad'?3:2;inv.plank+=pk;let f=Math.random()<.6?1:0;inv.apple+=f;say('+'+pk+' planks'+(f?', +1 apple':''))}
- else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' stone');asteroids.splice(asteroids.indexOf(o.ast),1)}
+ else if(o.kind==='rock'){const i=rocks.indexOf(o);if(i>=0)rocks.splice(i,1);const j=asteroids.indexOf(o.ast);if(j>=0)asteroids.splice(j,1);inv.stone++;say('+1 rock');save()}
+ else if(o.kind==='asteroid'){inv.stone+=o.stone;say('+'+o.stone+' rock'+(o.stone>1?'s':''));asteroids.splice(asteroids.indexOf(o.ast),1)}
  else if(o.kind==='snake'){despawnSnake(o);inv.food+=3;inv.leather++;say('+3 meat, +1 leather')}
  else if(o.kind==='fish'){const l=o.pl.fish,i=l.indexOf(o);if(i>=0)l.splice(i,1);if(o.pet)dropPet(o,true);o.owned=false;inv.fish++;say('+1 raw fish 🐟')}
  else{const f=o.pred?4:2;inv.food+=f;let m='+'+f+' meat';if(o.pred){if(Math.random()<.7){inv.leather++;m+=', +1 leather'}else{inv.anti++;m+=', +1 Gravity Generator ✨'}}else if(Math.random()<.25){inv.anti++;m+=', +1 Gravity Generator ✨'}say(m);if(o.pet)dropPet(o,true);o.owned=false;const l=o.pl.animals,i=l.indexOf(o);if(i>=0)l.splice(i,1)}
