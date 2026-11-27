@@ -129,6 +129,7 @@ const T=THREE,$=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a)
 const scene=new T.Scene();scene.background=new T.Color(0x03040a);scene.fog=new T.FogExp2(0x03040a,0);
 const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,60000);cam.rotation.order='YXZ';
 const ren=new T.WebGLRenderer({antialias:true});const COARSE=matchMedia('(pointer:coarse)').matches;ren.setPixelRatio(Math.min(devicePixelRatio,COARSE?1.5:2));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
+let PR_MAX=Math.min(devicePixelRatio,COARSE?1.5:2),PR=PR_MAX; // PR = current render resolution (lowered automatically when the game is slow, see adaptRes)
 let fovAdd=0; // tall/narrow screens (phones held upright) get a wider vertical field of view so the view isn't a thin slit
 const fitScreen=()=>{const a=innerWidth/innerHeight;cam.aspect=a;fovAdd=a<1.6?Math.min(25,(1.6-a)*30):0;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)};
 addEventListener('resize',fitScreen);addEventListener('orientationchange',()=>setTimeout(fitScreen,250));if(window.visualViewport)visualViewport.addEventListener('resize',fitScreen);
@@ -1327,7 +1328,7 @@ function useAnti(){
  land(AGW);
  say(cnt>0?'Gravity Generator on for '+cnt+' connected block'+(cnt>1?'s':'')+' ✨ Walk anywhere on them · Space / 8 to jump off':'Already a Gravity Generator block — walk on it · Space / 8 to jump off')}
 /* ---------- save / load (localStorage) ---------- */
-const SAVE_KEY='spaceExplore.save.v1';
+const SAVE_KEY='spaceExplore.save.v1',LIVE_KEY='spaceExplore.live.v1'; // LIVE_KEY: tiny save of where you are / health / time, written often; the big world save is written only when it changes
 let savedPos=null,savedPets=null; // where you were when you last quit (read by loadSave, applied by restorePos once everything is built)
 function posSnap(){ // exact spot, view and mode, so the game resumes right where you left off (a death re-saves deep space)
  const v=a=>[a.x,a.y,a.z],o={m:P.mode,p:v(cam.position),up:v(P.up),hd:v(P.hd),pitch:P.pitch,yaw:P.yaw,hh:P.hh,fall:P.fall?1:0,sw:P.sw?1:0};
@@ -1342,7 +1343,7 @@ function save(){
   if(_dc.v!==digVer)_dc={v:digVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.dig.forEach((e,k)=>a.push(k,e.L,Math.round(e.t)));return a}))}; // holes per planet: [grid size, column, layers, time dug, ...]
   if(_wc.v!==wVer)_wc={v:wVer,s:JSON.stringify(planets.map(d=>{const a=[d.dN];d.wset.forEach(k=>{const e=d.dig.get(k);if(e)a.push(k,Math.round(e.w*100),Math.round(e.we||0))});return a}))}; // water in pits per planet: [grid size, column, water x100, time it dries, ...]
   const S=[];for(const id of _bc.ids){const g=structs.get(id);if(g)S.push([g.id,g.origin.x,g.origin.y,g.origin.z,g.q.x,g.q.y,g.q.z,g.q.w])}
-  const rest=JSON.stringify({crops:cropSnap(),inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
+  const rest=JSON.stringify({ts:Date.now(),crops:cropSnap(),inv:inv,pets:petSnap(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),lay:layout,pos:posSnap()});
   const str='{"v":1,"lv":3,"structs":'+JSON.stringify(S)+',"blocks":'+_bc.s+',"dig":'+_dc.s+',"dw":'+_wc.s+','+rest.slice(1);
   if(str!==_lastSave){localStorage.setItem(SAVE_KEY,str);_lastSave=str}
  }catch(e){/* storage full or blocked (private mode) - game keeps working */}
@@ -1376,11 +1377,21 @@ function loadSave(){
   if(Number.isFinite(d.hg))P.hg=Math.max(0,Math.min(100,d.hg));
   if(Number.isFinite(d.t)){worldTime=Math.max(0,d.t);syncSpin(d.ang)}
   if(d.pos&&Array.isArray(d.pos.p)&&d.pos.p.length===3&&d.pos.p.every(Number.isFinite))savedPos=d.pos;
+  try{const lv=JSON.parse(localStorage.getItem(LIVE_KEY)||'null'); // newer than the big save? use its position / health / time
+   if(lv&&Number.isFinite(lv.ts)&&lv.ts>(d.ts||0)){
+    if(Number.isFinite(lv.hp)&&lv.hp>0)P.hp=Math.min(100,lv.hp);
+    if(Number.isFinite(lv.hg))P.hg=Math.max(0,Math.min(100,lv.hg));
+    if(Number.isFinite(lv.t)){worldTime=Math.max(0,lv.t);syncSpin(lv.ang)}
+    if(lv.pos&&Array.isArray(lv.pos.p)&&lv.pos.p.length===3&&lv.pos.p.every(Number.isFinite))savedPos=lv.pos}}catch(e){}
   if(d.lv>=2&&Array.isArray(d.lay)&&(d.lay.length===36||d.lay.length===NS))d.lay.forEach((k,i)=>{const j=d.lay.length===36&&i>=27?i+(BP-27):i;layout[j]=ITEMS[k]?k:null}); // old saves: hotbar gets filled automatically
  }catch(e){/* corrupt save - ignore and start fresh */}
 }
 loadSave();syncGrid();
-setInterval(()=>{if(_ticked){_ticked=false;save()}},3000); // autosave only if the game actually ran since the last save (not while paused / in a menu)
+function saveLive(){try{localStorage.setItem(LIVE_KEY,JSON.stringify({ts:Date.now(),hp:P.hp,hg:P.hg,t:worldTime,ang:planets.map(d=>d.ang),pos:posSnap()}))}catch(e){}}
+let _fullN=0,_invS='';
+setInterval(()=>{if(!_ticked)return;_ticked=false;
+ const s=JSON.stringify([inv,layout]);
+ if(blocksVer!==_bc.v||digVer!==_dc.v||wVer!==_wc.v||s!==_invS||++_fullN>=7){_invS=s;_fullN=0;save()}else saveLive()},3000); // autosave only if the game actually ran since the last save (not while paused / in a menu)
 addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 let active=false,ui=false,locked=false,drag=false;
@@ -1881,10 +1892,32 @@ function petUI(){
  let t='';if(!ui&&!SL.on&&P.alive&&active){const c=ropeSel()?ropeCand():null;
   if(c)t='🪢 Tie the '+petName(c)+'  <b>[Shift / 5]</b>';else{const q=nearestPet();if(q)t='✋ Let the '+petName(q)+' go  <b>[Shift]</b>'}}
  setH('rp',t);setSt('rp','display',t?'block':'none')}
+/* ---------- performance: don't draw what the planet's curve already hides (far trees, creatures, blocks), and lower the resolution when frames get slow ---------- */
+let _cuN=0;
+function cullFar(){
+ if((_cuN++&7)!==0)return; // every 8th frame is plenty
+ const cp=cam.position;let hz=0;
+ planets.forEach(d=>{
+  const alt=cp.distanceTo(d.c)-d.R,h=Math.max(2,alt),thr=alt>700?0:Math.sqrt(2*d.R*h+h*h)+220,t2=thr*thr; // horizon distance for your height + a margin for tall things; from far up the trees are invisible anyway
+  if(thr>hz)hz=thr;
+  for(const t of d.treeList)t.root.visible=t.root.position.distanceToSquared(cp)<t2;
+  for(const a of d.animals)a.root.visible=a.root.position.distanceToSquared(cp)<t2;
+ });
+ const b2=Math.pow(Math.max(450,hz),2),l2=60*60; // blocks: hidden beyond the horizon (min 450); their edge outlines only within 60 units (2 draw calls per block -> 1 for most)
+ blocks.forEach(o=>{const r=o.root,d2=o.pos.distanceToSquared(cp);r.visible=d2<b2;const c=r.children[0];if(c&&c.isLineSegments)c.visible=d2<l2});
+}
+let _arT=0,_arN=0,_arS=0,_arCool=10,_arBack=20,_arUp=false;
+function setPR(x){PR=x;ren.setPixelRatio(x);ren.setSize(innerWidth,innerHeight)}
+function adaptRes(dt){ // every 2 s: under ~33 fps -> render fewer pixels; with lots of headroom (and a cooldown that grows if it keeps bouncing) -> back up
+ _arT+=dt;_arN++;_arS+=dt;if(_arT<2)return;
+ const avg=_arS/_arN;_arT=_arS=_arN=0;_arCool-=2;
+ if(avg>.03&&PR>.6){setPR(Math.max(.6,PR*.85));if(_arUp){_arBack=Math.min(160,_arBack*2);_arUp=false}_arCool=_arBack}
+ else if(avg<.0185&&PR<PR_MAX&&_arCool<=0){setPR(Math.min(PR_MAX,PR*1.12));_arUp=true;_arCool=_arBack}
+}
 function loop(){
  requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);_dt=dt;
  if(active&&!ui){
-  _ticked=true;
+  _ticked=true;adaptRes(dt);
   if(SL.on)sleepTick(dt);else if(P.mode==='ground')groundStep(dt);else spaceStep(dt);
   cam.getWorldDirection(fwd);
   atmoUpdate();uwUpdate(dt);breathTick(dt);
@@ -1921,7 +1954,7 @@ function loop(){
  }
  syncGrid();renderHot();agMat.opacity=.16+.08*Math.sin(performance.now()/350);
  stepGlitter(dt);stepBits(dt);SKY.position.copy(cam.position);
- ren.render(scene,cam);
+ cullFar();ren.render(scene,cam);
 }
 /* ---------- resume where you left off (death is the only thing that sends you to deep space) ---------- */
 /* a brand-new player (no save) starts on Verdant, on dry land in daylight, a few steps from the water and facing it */

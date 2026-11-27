@@ -116,3 +116,8 @@ A brand-new player (no save yet) spawns on Verdant, on dry land in daylight, abo
 
 ## Start-up
 The page shows an animated loading screen while the game builds (screen size, touch / keyboard detection, your saved world, planets and blocks), then drops you straight into the game. **How to play** is behind the **?** button at the top right (it pauses the game; press it again, Esc or "Got it" to continue). On a computer, click the screen to capture the mouse for looking around; losing the mouse (Esc) no longer pauses.
+
+## Performance notes
+- **Distance culling** (`cullFar`): trees, creatures and blocks beyond the horizon (plus a margin) are hidden instead of drawn; block edge outlines only draw within 60 units. Runs every 8th frame.
+- **Adaptive resolution** (`adaptRes`): if the frame rate stays under ~33 fps the render resolution drops (down to 0.6x), and it climbs back when there is headroom.
+- **Save throttling**: a tiny `spaceExplore.live.v1` key (position, health, time) is written every 3 s; the big world save is written only when blocks / holes / water / inventory change, or about every 21 s, and on page close. On load, the newer of the two wins.
